@@ -29,6 +29,8 @@ SYNOPSIS
         $c->maxreclevel(4);
         $c->maxfiles(20);
         $c->maxfilesize(1024 * 1024 * 20); # 20 megs
+        $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
+        $c->maxratio(0);
 
         # Scan a buffer
         my $status = $c->scanbuff($buff);
@@ -60,22 +62,55 @@ DESCRIPTION
   Exportable constants
     Options for scanning.
 
-    CL_MAIL
-     enables mbox and Maildir scanning
+    CL_SCAN_STDOPT
+     This is an alias for a recommended set of scan options. You should use
+     it to make your software ready for new features in future versions of
+     libclamav.
 
-     WARNING WARNING WARNING The MIME parsing in clamav is still beta
-     quality code as of the time of this writing [Tue Feb 10 10:09:56 PST
-     2004]. It will segfault with certain emails. This tested with current
-     CVS of clamav.
+    CL_SCAN_RAW
+     It does nothing. Please use it (alone) if you don't want to scan any
+     special files.
 
-    CL_ARCHIVE
-     enables archive scanning
+    CL_SCAN_ARCHIVE
+     This flag enables transparent scanning of various archive formats.
 
-    CL_RAW
-     disables archive scanning
+    CL_SCAN_BLOCKENCRYPTED
+     With this flag the library marks encrypted archives as viruses
+     (Encrypted.Zip, Encrypted.RAR).
 
-    Status returns. These are the first item in the list returned by
-    "scan()" and "scanbuff()" when put into numeric context
+    CL_SCAN_BLOCKMAX
+     Mark archives as viruses if maxfiles, maxfilesize, or maxreclevel limit
+     is reached.
+
+    CL_SCAN_MAIL
+     It enables support for mail files.
+
+    CL_SCAN_MAILURL
+     The mail scanner will download and scan URLs listed in a mail body.
+     This flag should not be used on loaded servers. Due to potential
+     problems please do not enable it by default but make it optional.
+
+    CL_SCAN_OLE2
+     Enables support for Microsoft Office document files.
+
+    CL_SCAN_PE
+     This flag enables scanning withing Portable Executable files and allows
+     libclamav to unpack UPX, Petite, and FSG compressed executables.
+
+    CL_SCAN_BLOCKBROKEN
+     libclamav will try to detect broken executables and mark them as
+     Broken.Executable.
+
+    CL_SCAN_HTML
+     This flag enables HTML normalisation (including JScript decryption).
+
+    Status returns. You can get the status code by putting the status object
+    returned into into numeric context.
+
+        my $status = $c->scan("foo.txt");
+        print "Status: ", ($status + 0), "\n";
+
+    The following are returned statuses if no error occured.
 
     CL_CLEAN
      no viruses found
@@ -83,53 +118,40 @@ DESCRIPTION
     CL_VIRUS
      virus found, put the status in scalar context to see the type
 
-     These are the error status codes which you can get by putting
-     $Mail::ClamAV::Error in numeric context
+    Error statuses
 
     CL_EMAXREC
-     Recursion limit exceeded.
+     recursion level limit exceeded
 
     CL_EMAXSIZE
-     File size limit exceeded.
+     size limit exceeded
 
     CL_EMAXFILES
-     Files number limit exceeded.
+     files limit exceeded
 
     CL_ERAR
-     RAR module failure.
+     rar handler error
 
     CL_EZIP
-     Zip module failure.
+     zip handler error
 
     CL_EMALFZIP
-     Malformed Zip detected.
+     malformed zip
 
     CL_EGZIP
-     GZip module failure.
+     gzip handler error
 
-    CL_ETMPFILE
-     Unable to create temporary file.
+    CL_EBZIP
+     bzip2 handler error
 
-    CL_ETMPDIR
-     Unable to create temporary directory.
+    CL_EOLE2
+     OLE2 handler error
 
-    CL_EFSYNC
-     Unable to synchronize file <-> disk.
-
-    CL_EMEM
-     Unable to allocate memory.
-
-    CL_EOPEN
-     Unable to open file or directory.
-
-    CL_EMALFDB
-     Malformed database.
-
-    CL_EPATSHORT
-     Too short pattern detected.
+    CL_EACCES
+     access denied
 
     CL_ENULLARG
-     Null argument passed when initialized is required.
+     null argument error
 
   Exportable functions
     These function can be exported either individually or using the :all
@@ -147,10 +169,20 @@ METHODS
      Sets the maximum recursion level [default 5].
 
     maxfiles
-     Maximum number of files that will be scanned [default 1000].
+     Maximum number of files that will be scanned [default 1000]. A value of
+     zero disables the check.
 
     maxfilesize
-     Maximum file size that will be scanned in bytes [default 10M].
+     Maximum file size that will be scanned in bytes [default 10M]. A value
+     of zero disables the check.
+
+    maxratio
+     Maximum compression ratio. So if this is set to 200, libclamav will
+     give up decompressing a file if it reaches 200x its compressed size
+     [default 200]. A value of zero disables the check.
+
+    archivememlim
+     Turns on/off memory usage limits for bzip2. [default 1]
 
   Scanning
     All of these methods return a status object. This object is overloaded
@@ -184,7 +216,10 @@ METHODS
      that off to clamav. The second argument is a bitfield of options,
      CL_MAIL, CL_ARCHIVE or CL_RAW "Exportable constants".
 
-     This function returns the status object discussed earlier
+     This function returns the status object discussed earlier.
+
+     Note that if you are running in taint mode (-T) and a tainted path is
+     passed to "scan()", it will "croak()".
 
     scanbuff($buff)
      scanbuff takes a raw buffer and scans it. No options are available for

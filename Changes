@@ -1,5 +1,22 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.12  Mon Oct 18 05:22:54 PM 2004
+   - 0.80 came out today. Updated code to work with the new
+     version, this however breaks backwards compatibility.
+   - Updated tests for all the changes.
+
+0.12  Thu Aug 12 02:12:55 PM 2004
+   - Fixed an issue in Makefile.PL which was causing problems
+     with Solaris make implementation thanks to
+     Mike Brudenell <pmb1 [] york * ac * uk>.
+   - Added taint checking to scan(). It now croaks if
+     a file path passed in is tainted. This only happens
+     under -T. Reported by
+     Mark Martinec <Mark * Martinec [] ijs * si>
+   - Added "+" overload for the status object. Also reported
+     by Mark Martinec <Mark * Martinec [] ijs * si>
+   - Added tests for the above changes.
+
 0.11  Mon Jun 28 10:26:50 AM 2004
    - Inline_Stack_Item() is indexed at zero. All set/get
      methods are broken because of this mistake. Thanks to

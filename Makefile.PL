@@ -38,7 +38,7 @@ close $fh;
 sub MY::top_targets {
     package MY;
     my $out = shift->SUPER::top_targets(@_);
-    my $link_code = q{
+    my $link_code = q{# Remove Inline::C configuration code
 	@$(PERL) -n -i -e '$$a=1 if/^\s*#\s*removed on install.*/;print if!$$a;$$a=0if/^\s*#\s*end[^\n]*/;' blib/lib/Mail/ClamAV.pm
 };
     $out =~ s/\n\n/\n\nremove_on_install:\n$link_code\n/;

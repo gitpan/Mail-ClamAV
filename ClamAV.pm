@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.11';
+    $VERSION = '0.12';
 }
 
 # guard against memory errors not being reported
@@ -54,15 +54,17 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_EMD5
     CL_EDSIG
 
-    CL_MAIL
-    CL_ARCHIVE
-    CL_RAW
-    CL_OLE2
-    CL_ENCRYPTED
-    CL_RAW
-    CL_DISABLERAR
-    CL_MIN_LENGTH
-    CL_NUM_CHILDS
+    CL_SCAN_RAW
+    CL_SCAN_ARCHIVE
+    CL_SCAN_MAIL
+    CL_SCAN_DISABLERAR
+    CL_SCAN_OLE2
+    CL_SCAN_BLOCKENCRYPTED
+    CL_SCAN_HTML
+    CL_SCAN_PE
+    CL_SCAN_BLOCKBROKEN
+    CL_SCAN_MAILURL
+    CL_SCAN_BLOCKMAX
 
     CL_VIRUS
     CL_CLEAN
@@ -106,6 +108,9 @@ sub scan {
     }
     else {
         croak "$thing does not exist" unless -e $thing;
+        if (_tainted($thing)) {
+            croak "path argument specified to scan() is tainted";
+        }
         ($st, $num_scanned) = _scanfile($self, $thing, $options);
     }
     my $status = new Mail::ClamAV::Status;
@@ -194,6 +199,10 @@ SV *clamav_perl_new(char *class, char *path)
     c->limits.maxfiles = 1000;
     c->limits.maxfilesize = 1024 * 1028 * 10; /* 10 Megs */
 
+    /* XXX need to figure out a nice default */
+    c->limits.maxratio = 200;
+    c->limits.archivememlim = 1;
+
     if (S_ISDIR(st.st_mode)) {
         c->is_dir = 1;
         memset(&c->st, 0, sizeof(struct cl_stat));
@@ -280,6 +289,32 @@ int clamav_perl_maxfilesize(SV *self, ...)
     return SvClam(self)->limits.maxfilesize;
 }
 
+int clamav_perl_maxratio(SV *self, ...)
+{
+    Inline_Stack_Vars;
+    if (Inline_Stack_Items > 1) {
+        SV *max;
+        if (Inline_Stack_Items > 2)
+            croak("Invalid number of arguments to maxratio()");
+        max = Inline_Stack_Item(1);
+        SvClam(self)->limits.maxratio = (long int)SvIV(max);
+    }
+    return SvClam(self)->limits.maxratio;
+}
+
+int clamav_perl_archivememlim(SV *self, ...)
+{
+    Inline_Stack_Vars;
+    if (Inline_Stack_Items > 1) {
+        SV *max;
+        if (Inline_Stack_Items > 2)
+            croak("Invalid number of arguments to archivememlim()");
+        max = Inline_Stack_Item(1);
+        SvClam(self)->limits.archivememlim = (short)SvIV(max);
+    }
+    return SvClam(self)->limits.archivememlim;
+}
+
 void clamav_perl__scanbuff(SV *self, SV *buff)
 {
     struct clamav_perl *c = SvClam(self);
@@ -355,20 +390,25 @@ void clamav_perl__scanfd(SV *self, int fd, int options)
     Inline_Stack_Done;
 }
 
-void clamav_perl__scanfile(SV *self, char *path, int options)
+void clamav_perl__scanfile(SV *self, SV *path, int options)
 {
     struct clamav_perl *c = SvClam(self);
     STRLEN len;
     int status;
     unsigned long int scanned;
     const char *msg;
+    char *p;
     SV *smsg, *sscanned;
     Inline_Stack_Vars;
 
     Inline_Stack_Reset;
 
+    if (SvTAINTED(path))
+        croak("path argument specified to scan() is tainted");
+
     scanned = 0;
-    status = cl_scanfile(path, &msg, &scanned, c->root,
+    p = SvPV(path, PL_na);
+    status = cl_scanfile(p, &msg, &scanned, c->root,
             &c->limits, options);
     if (scanned == 0)
         scanned = 1;
@@ -391,6 +431,14 @@ void clamav_perl__scanfile(SV *self, char *path, int options)
     Inline_Stack_Done;
 }
 
+int clamav_perl__tainted(SV *s)
+{
+    if (SvTAINTED(s))
+        return 1;
+    else
+        return 0;
+}
+
 static void error(int errcode)
 {
     const char *e;
@@ -406,6 +454,7 @@ int clamav_perl_constant(char *name)
 {
     if (strEQ("CL_CLEAN", name)) return CL_CLEAN;
     if (strEQ("CL_VIRUS", name)) return CL_VIRUS;
+
     if (strEQ("CL_EMAXREC", name)) return CL_EMAXREC;
     if (strEQ("CL_EMAXSIZE", name)) return CL_EMAXSIZE;
     if (strEQ("CL_EMAXFILES", name)) return CL_EMAXFILES;
@@ -415,6 +464,8 @@ int clamav_perl_constant(char *name)
     if (strEQ("CL_EGZIP", name)) return CL_EGZIP;
     if (strEQ("CL_EBZIP", name)) return CL_EBZIP;
     if (strEQ("CL_EOLE2", name)) return CL_EOLE2;
+    if (strEQ("CL_EMSCOMP", name)) return CL_EMSCOMP;
+    if (strEQ("CL_EMSCAB", name)) return CL_EMSCAB;
     if (strEQ("CL_EACCES", name)) return CL_EACCES;
     if (strEQ("CL_ENULLARG", name)) return CL_ENULLARG;
 
@@ -429,18 +480,23 @@ int clamav_perl_constant(char *name)
     if (strEQ("CL_ECVDEXTR", name)) return CL_ECVDEXTR;
     if (strEQ("CL_EMD5", name)) return CL_EMD5;
     if (strEQ("CL_EDSIG", name)) return CL_EDSIG;
+    if (strEQ("CL_EIO", name)) return CL_EIO;
+    if (strEQ("CL_EFORMAT", name)) return CL_EFORMAT;
 
-    if (strEQ("CL_MAIL", name)) return CL_MAIL;
-    if (strEQ("CL_ARCHIVE", name)) return CL_ARCHIVE;
-    if (strEQ("CL_RAW", name)) return CL_RAW;
-    if (strEQ("CL_OLE2", name)) return CL_OLE2;
-    if (strEQ("CL_ENCRYPTED", name)) return CL_ENCRYPTED;
-    if (strEQ("CL_DISABLERAR", name)) return CL_DISABLERAR;
-    if (strEQ("CL_NUM_CHILDS", name)) return CL_NUM_CHILDS;
-    if (strEQ("CL_MIN_LENGTH", name)) return CL_MIN_LENGTH;
+    if (strEQ("CL_SCAN_RAW", name)) return CL_SCAN_RAW;
+    if (strEQ("CL_SCAN_ARCHIVE", name)) return CL_SCAN_ARCHIVE;
+    if (strEQ("CL_SCAN_MAIL", name)) return CL_SCAN_MAIL;
+    if (strEQ("CL_SCAN_DISABLERAR", name)) return CL_SCAN_DISABLERAR;
+    if (strEQ("CL_SCAN_OLE2", name)) return CL_SCAN_OLE2;
+    if (strEQ("CL_SCAN_BLOCKENCRYPTED", name)) return CL_SCAN_BLOCKENCRYPTED;
+    if (strEQ("CL_SCAN_HTML", name)) return CL_SCAN_HTML;
+    if (strEQ("CL_SCAN_PE", name)) return CL_SCAN_PE;
+    if (strEQ("CL_SCAN_BLOCKBROKEN", name)) return CL_SCAN_BLOCKBROKEN;
+    if (strEQ("CL_SCAN_MAILURL", name)) return CL_SCAN_MAILURL;
+    if (strEQ("CL_SCAN_BLOCKMAX", name)) return CL_SCAN_BLOCKMAX;
 
-    if (strEQ("CL_VIRUS", name)) return CL_VIRUS;
-    if (strEQ("CL_CLEAN", name)) return CL_CLEAN;
+    if (strEQ("CL_SCAN_STDOPT", name)) return CL_SCAN_STDOPT;
+
     croak("Invalid function %s", name);
 }
 
@@ -456,6 +512,7 @@ import Mail::ClamAV qw(CL_CLEAN CL_VIRUS);
 
 use overload
     '""'   => sub { $_[0]->error },
+    '+'    => sub { $_[0]->errno },
     'cmp'  => sub { $_[2] ? $_[1] cmp "$_[0]" : "$_[0]" cmp $_[1] },
     'bool' => sub {
         $_[0]->errno == CL_CLEAN() or
@@ -509,6 +566,8 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
     $c->maxreclevel(4);
     $c->maxfiles(20);
     $c->maxfilesize(1024 * 1024 * 20); # 20 megs
+    $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
+    $c->maxratio(0);
 
     # Scan a buffer
     my $status = $c->scanbuff($buff);
@@ -546,34 +605,57 @@ Options for scanning.
 
 =over 1
 
-=item CL_RAW
+=item CL_SCAN_STDOPT
 
-It does nothing. Please use it (alone) if you don't want to scan any special files.
+This is an alias for a recommended set of scan options. You should use it to
+make your software ready for new features in future versions of libclamav.
 
-=item CL_ARCHIVE
+=item CL_SCAN_RAW
 
-This flag enables the transparent archive scanning.
+It does nothing. Please use it (alone) if you don't want to scan any special
+files.
 
-=item CL_DISABLERAR
+=item CL_SCAN_ARCHIVE
 
-Disables the built-in RAR unpacker which is known to cause memory leaks.
+This flag enables transparent scanning of various archive formats.
 
-=item CL_ENCRYPTED
+=item CL_SCAN_BLOCKENCRYPTED
 
-Marks encrypted archives as viruses (Enccrypted.Zip, Encrypted.RAR).
+With this flag the library marks encrypted archives as viruses (Encrypted.Zip,
+Encrypted.RAR).
 
-=item CL_MAIL
+=item CL_SCAN_BLOCKMAX
 
-Required to scan various types of mail files.
+Mark archives as viruses if maxfiles, maxfilesize, or maxreclevel limit is
+reached.
 
-B<WARNING> B<WARNING> B<WARNING>
-The MIME parsing in clamav is still beta quality code as of the time of this
-writing [Fri Apr  2 09:16:25 PST 2004]. It B<will> segfault with certain emails.
-This tested with current CVS of clamav.
+=item CL_SCAN_MAIL
 
-=item CL_OLE2
+It enables support for mail files.
+
+=item CL_SCAN_MAILURL
+
+The mail scanner will download and scan URLs listed in a mail body. This flag
+should not be used on loaded servers. Due to potential problems please do not
+enable it by default but make it optional.
+
+=item CL_SCAN_OLE2
 
 Enables support for Microsoft Office document files.
+
+=item CL_SCAN_PE
+
+This flag enables scanning withing Portable Executable files and allows
+libclamav to unpack UPX, Petite, and FSG compressed executables.
+
+=item CL_SCAN_BLOCKBROKEN
+
+libclamav will try to detect broken executables and mark them as
+Broken.Executable.
+
+=item CL_SCAN_HTML
+
+This flag enables HTML normalisation (including JScript decryption).
 
 =back
 
@@ -583,7 +665,9 @@ returned into into numeric context.
     my $status = $c->scan("foo.txt");
     print "Status: ", ($status + 0), "\n";
 
+
 The following are returned statuses if no error occured.
+
 
 =over 1
 
@@ -676,11 +760,23 @@ Sets the maximum recursion level [default 5].
 
 =item maxfiles
 
-Maximum number of files that will be scanned [default 1000].
+Maximum number of files that will be scanned [default 1000]. A value of zero
+disables the check.
 
 =item maxfilesize
 
-Maximum file size that will be scanned in bytes [default 10M].
+Maximum file size that will be scanned in bytes [default 10M]. A value of zero
+disables the check.
+
+=item maxratio
+
+Maximum compression ratio. So if this is set to 200, libclamav will give up
+decompressing a file if it reaches 200x its compressed size [default 200]. A
+value of zero disables the check.
+
+=item archivememlim
+
+Turns on/off memory usage limits for bzip2. [default 1]
 
 =back
 
@@ -693,7 +789,7 @@ error.  For example:
     die "Error scanning: $status" unless $status;
 
 As you probably just noticed, $status in scalar context returns the error
-message.  In addition to the overloading you just saw, $status has the
+message. In addition to the overloading you just saw, $status has the
 following methods:
 
 =over 1
@@ -728,7 +824,10 @@ C<scan()> takes a FileHanle or path and passed the file descriptor for that off
 to clamav.  The second argument is a bitfield of options, CL_MAIL, CL_ARCHIVE
 or CL_RAW L<"Exportable constants">.
 
-This function returns the status object discussed earlier
+This function returns the status object discussed earlier.
+
+Note that if you are running in taint mode (-T) and a tainted path is passed to
+C<scan()>, it will C<croak()>.
 
 =item scanbuff($buff)
 
