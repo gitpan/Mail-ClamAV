@@ -1,5 +1,16 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.05  Tue Feb 10 10:12:42 AM 2004
+    - Finished up statchkdir
+    - more docs updates
+    - removed real virus and added eicar
+    - added INSTALL and updated Makefile.PL
+      so LIBS can be configured
+
+0.05  Tue Jan 27 01:27:44 PM 2004
+    - New method statchkdir
+    - Updated documentation URLs
+
 0.04  Wed Oct 15 09:26:10 AM 2003
     - Added a test for the overloaded status object
 

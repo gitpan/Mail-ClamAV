@@ -1,5 +1,7 @@
 Changes
 ClamAV.pm
+config.pl
+INSTALL
 Makefile.PL
 MANIFEST
 META.yml

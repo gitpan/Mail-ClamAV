@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.04';
+    $VERSION = '0.05';
 }
 
 # guard against memory errors not being reported
@@ -133,11 +133,17 @@ sub scanbuff {
     return $status;
 }
 
+
 use Inline C => Config =>
     VERSION  => $VERSION,
     PREFIX   => 'clamav_perl_',
     NAME     => "Mail::ClamAV",
     LIBS     => "-lclamav";
+# removed on install
+BEGIN {
+require "./config.pl";
+}
+# end removed on install
 use Inline C => <<'END_OF_C';
 #include <stdio.h>
 #include <string.h>
@@ -154,6 +160,9 @@ static void error(int errcode);
 struct clamav_perl {
     struct cl_node *root;
     struct cl_limits limits;
+    struct cl_stat st;
+    char is_dir;
+    char *path;
     int signatures;
 };
 
@@ -173,8 +182,14 @@ SV *clamav_perl_new(char *class, char *path)
     c->limits.maxfiles = 1000;
     c->limits.maxfilesize = 1024 * 1028 * 10; /* 10 Megs */
 
-    if (S_ISDIR(st.st_mode))
-        status = cl_loaddbdir(path, &c->root, &c->signatures);
+    if (S_ISDIR(st.st_mode)) {
+        c->is_dir = 1;
+        memset(&c->st, 0, sizeof(struct cl_stat));
+        status = cl_statinidir(path, &c->st);
+        c->path = strdup(path);
+        if (status == 0)
+            status = cl_loaddbdir(path, &c->root, &c->signatures);
+    }
     else
         status = cl_loaddb(path, &c->root, &c->signatures);
 
@@ -189,6 +204,17 @@ SV *clamav_perl_new(char *class, char *path)
     sv_setiv(self, (IV) c);
     SvREADONLY_on(self);
     return self_ref;
+}
+
+int clamav_perl_statchkdir(SV *self)
+{
+    int ret;
+    struct clamav_perl *c = SvClam(self);
+    if (c->is_dir == 0)
+        croak("statchkdir() only works if a database directory was specified to new()");
+    ret = cl_statchkdir(&c->st);
+    cl_statfree(&c->st);
+    cl_statinidir(c->path, &c->st);
 }
 
 char *clamav_perl_retdbdir()
@@ -271,8 +297,12 @@ void clamav_perl__scanbuff(SV *self, SV *buff)
 
 void DESTROY(SV *self)
 {
-    cl_freetrie(SvClam(self)->root);
-    Safefree(SvClam(self));
+    struct clamav_perl *c = SvClam(self);
+    cl_freetrie(c->root);
+    if (c->is_dir == 1)
+        cl_statfree(&c->st);
+    Safefree(c->path);
+    Safefree(c);
 }
 
 void clamav_perl__scanfd(SV *self, int fd, int options)
@@ -441,6 +471,12 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
     # When database is loaded, you must create the proper trie with:
     $c->buildtrie;
 
+    # check to see if we need to reload
+    if ($c->statchkdir) {
+        $c = new Mail::ClamAV(retdbdir());
+        $c->buildtrie;
+    }
+
     # Set some limits (only applies to scan())
     # Only relevant for archives
     $c->maxreclevel(4);
@@ -465,7 +501,7 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
     else {
         print "No virus found!\n";
     }
-    
+
 
 =head1 DESCRIPTION
 
@@ -489,7 +525,7 @@ enables mbox and Maildir scanning
 
 WARNING WARNING WARNING
 The MIME parsing in clamav is still beta quality code as of the time of this
-writing [Fri Oct 10 02:35:09 PM 2003]. It B<will> segfault with certain emails.
+writing [Tue Feb 10 10:09:56 PST 2004]. It B<will> segfault with certain emails.
 This tested with current CVS of clamav.
 
 =item CL_ARCHIVE
@@ -675,9 +711,23 @@ it is raw).
 
 =back
 
+=head2 Data Directory stats
+
+If the path passed into C<new()> is a directory Mail::ClamAV will set things up
+to check for updated database files. Calling the C<statchkdir()> will check the
+database directory to the stats we have in memory. If anything has changed true
+is returned, otherwise false.
+
+NOTE: trying to use C<statchkdir()> when you passed in a database file instead
+of directory will produce a fatal error.
+
+C<statchkdir()> is useful for long running daemons that need to check to see if
+it is time to reload the database. Reloading is simply getting a new
+Mail::ClamAV object and initializing it.
+
 =head1 SEE ALSO
 
-The ClamAV API documentation L<http://clamav.elektrapro.com/doc/html/node36.html>
+The ClamAV API documentation L<http://www.clamav.net/doc/html-0.65/node44.html>
 
 =head1 AUTHOR
 

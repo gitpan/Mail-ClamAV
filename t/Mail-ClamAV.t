@@ -28,14 +28,16 @@ foreach my $constname (qw(
 ok( $fail == 0 , 'Constants' );
 
 my $c = new Mail::ClamAV(retdbdir());
+$|=1;
 $c->buildtrie;
 my $f = "t/virus.eml";
-ok($c->scan($f, CL_MAIL())->virus, 'Scan File');
+my $status = $c->scan($f, CL_MAIL());
+ok("$status" eq "Eicar-Test-Signature", 'Scan File');
 open my $fh, "<", $f;
 ok($c->scan($fh, CL_MAIL())->virus, 'Scan FileHandle');
 
-my $status = $c->scan($f, CL_MAIL());
-ok("$status" eq "Worm.Gibe.F", 'Scan File overload');
+$status = $c->scan($f, CL_MAIL());
+ok("$status" eq "Eicar-Test-Signature", 'Scan File overload');
 seek $fh, 0, 0;
 $status = $c->scan($fh, CL_MAIL());
-ok("$status" eq "Worm.Gibe.F", 'Scan FileHandle overload');
+ok("$status" eq "Eicar-Test-Signature", 'Scan FileHandle overload');
