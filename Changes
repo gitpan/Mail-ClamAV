@@ -1,5 +1,14 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.03  Tue Oct 14 05:11:42 AM 2003
+    - Set number scanned to zero if an error happend
+
+0.03  Tue Oct 14 05:02:16 AM 2003
+    - Default number scanned to one
+
+0.03  Sun Oct 12 06:56:23 AM 2003
+    - Documentation fix by Spoon
+
 0.02  Fri Oct 10 06:46:52 PM 2003
     - fixed problems in overloading code for the status object
 

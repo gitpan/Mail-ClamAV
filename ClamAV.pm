@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-$VERSION = '0.02';
+    $VERSION = '0.03';
 }
 
 # guard against memory errors not being reported
@@ -97,11 +97,16 @@ sub scan {
         ($st, $num_scanned) = _scanfile($self, $thing, $options);
     }
     my $status = new Mail::ClamAV::Status;
-    $status->count($num_scanned);
     $status->error($st);
     $status->errno(0+$st);
     $status->clean($st == CL_CLEAN());
     $status->virus($st == CL_VIRUS());
+    if ($status) {
+        $status->count($num_scanned);
+    }
+    else {
+        $status->count(0);
+    }
     return $status;
 }
 
@@ -115,11 +120,16 @@ sub scanbuff {
 
     my $st = _scanbuff($self, $buff);
     my $status = new Mail::ClamAV::Status;
-    $status->count(1);
     $status->error($st);
     $status->errno(0+$st);
     $status->clean($st == CL_CLEAN());
     $status->virus($st == CL_VIRUS());
+    if ($status) {
+        $status->count(1);
+    }
+    else {
+        $status->count(0);
+    }
     return $status;
 }
 
@@ -245,16 +255,14 @@ void clamav_perl__scanbuff(SV *self, SV *buff)
     b = SvPV(buff, len);
     status = cl_scanbuff(b, len, &msg, c->root);
 
-    if (status != CL_VIRUS && status != CL_CLEAN) {
-        Inline_Stack_Done;
-        error(status);
-        return;
-    }
     /* msg is some random memory if no virus was found */
     if (status == CL_VIRUS)
         smsg = sv_2mortal(newSVpv(msg, 0));
+    else if (status == CL_CLEAN)
+        smsg = sv_2mortal(newSVpv("Clean", 0));
     else
-        smsg = sv_2mortal(newSVpv("No Virus", 0));
+        smsg = sv_2mortal(newSVpv(cl_perror(status), 0));
+
     sv_setiv(smsg, (IV)status);
     SvIOK(smsg);
     Inline_Stack_Push(smsg);
@@ -282,17 +290,17 @@ void clamav_perl__scanfd(SV *self, int fd, int options)
     scanned = 0;
     status = cl_scandesc(fd, &msg, &scanned, c->root,
             &c->limits, options);
+    if (scanned == 0)
+        scanned = 1;
 
-    if (status != CL_VIRUS && status != CL_CLEAN) {
-        Inline_Stack_Done;
-        error(status);
-        return;
-    }
     /* msg is some random memory if no virus was found */
     if (status == CL_VIRUS)
         smsg = sv_2mortal(newSVpv(msg, 0));
+    else if (status == CL_CLEAN)
+        smsg = sv_2mortal(newSVpv("Clean", 0));
     else
-        smsg = sv_2mortal(newSVpv("No Virus", 0));
+        smsg = sv_2mortal(newSVpv(cl_perror(status), 0));
+
     sv_setiv(smsg, (IV)status);
     SvIOK(smsg);
     Inline_Stack_Push(smsg);
@@ -316,20 +324,20 @@ void clamav_perl__scanfile(SV *self, char *path, int options)
     scanned = 0;
     status = cl_scanfile(path, &msg, &scanned, c->root,
             &c->limits, options);
+    if (scanned == 0)
+        scanned = 1;
 
-    if (status != CL_VIRUS && status != CL_CLEAN) {
-        Inline_Stack_Done;
-        error(status);
-        return;
-    }
     smsg = sv_newmortal();
     sv_setiv(smsg, (IV)status);
 
     /* msg is some random memory if no virus was found */
     if (status == CL_VIRUS)
         sv_setpv(smsg, msg);
+    else if (status == CL_CLEAN)
+        sv_setpv(smsg, "Clean");
     else
-        sv_setpv(smsg, "No Virus");
+        sv_setpv(smsg, cl_perror(status));
+
     SvIOK_on(smsg);
     Inline_Stack_Push(smsg);
     sscanned = sv_2mortal(newSViv(scanned));
@@ -461,7 +469,7 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
 
 Clam AntiVirus is an anti-virus toolkit for UNIX
 L<http://clamav.elektrapro.com/>.  This module provide a simple interface to
-it's C API.
+its C API.
 
 =head2 EXPORT
 
