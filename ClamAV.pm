@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.13';
+    $VERSION = '0.14';
 }
 
 # guard against memory errors not being reported
@@ -42,6 +42,7 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
 
     CL_CLEAN
     CL_VIRUS
+
     CL_EMAXREC
     CL_EMAXSIZE
     CL_EMAXFILES
@@ -51,6 +52,8 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_EGZIP
     CL_EBZIP
     CL_EOLE2
+    CL_EMSCOMP
+    CL_EMSCAB
     CL_EACCES
     CL_ENULLARG
 
@@ -65,6 +68,8 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_ECVDEXTR
     CL_EMD5
     CL_EDSIG
+    CL_EIO
+    CL_EFORMAT
 
     CL_SCAN_RAW
     CL_SCAN_ARCHIVE
@@ -77,6 +82,7 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_SCAN_BLOCKBROKEN
     CL_SCAN_MAILURL
     CL_SCAN_BLOCKMAX
+    CL_SCAN_STDOPT
 
     CL_RAW
     CL_ARCHIVE
@@ -90,7 +96,6 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_MAILURL
     CL_BLOCKMAX
 
-    CL_SCAN_STDOPT
 
     CL_VIRUS
     CL_CLEAN
@@ -353,19 +358,24 @@ void clamav_perl__scanbuff(SV *self, SV *buff)
 
     Inline_Stack_Reset;
 
+    if (SvTAINTED(buff))
+        croak("buff argument specified to scanbuff() is tainted");
+
     b = SvPV(buff, len);
     status = cl_scanbuff(b, len, &msg, c->root);
 
+    smsg = sv_newmortal();
+    sv_setiv(smsg, (IV)status);
+
     /* msg is some random memory if no virus was found */
     if (status == CL_VIRUS)
-        smsg = sv_2mortal(newSVpv(msg, 0));
+        sv_setpv(smsg, msg);
     else if (status == CL_CLEAN)
-        smsg = sv_2mortal(newSVpv("Clean", 0));
+        sv_setpv(smsg, "Clean");
     else
-        smsg = sv_2mortal(newSVpv(cl_perror(status), 0));
+        sv_setpv(smsg, cl_perror(status));
 
-    sv_setiv(smsg, (IV)status);
-    SvIOK(smsg);
+    SvIOK_on(smsg);
     Inline_Stack_Push(smsg);
     Inline_Stack_Done;
 }
@@ -595,9 +605,6 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
     $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
     $c->maxratio(0);
 
-    # Scan a buffer
-    my $status = $c->scanbuff($buff);
-
     # Scan a filehandle (scandesc in clamav)
     # scan(FileHandle or path, Bitfield of options)
     my $status = $c->scan(FH, CL_SCAN_ARCHIVE|CL_SCAN_MAIL);
@@ -618,7 +625,7 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
 =head1 DESCRIPTION
 
 Clam AntiVirus is an anti-virus toolkit for UNIX
-L<http://clamav.elektrapro.com/>.  This module provide a simple interface to
+L<http://www.clamav.com/>.  This module provide a simple interface to
 its C API.
 
 =head2 EXPORT
@@ -747,6 +754,14 @@ bzip2 handler error
 
 OLE2 handler error
 
+=item CL_EMSCOMP
+
+compress.exe handler error
+
+=item CL_EMSCAB 
+
+MS CAB module error
+
 =item CL_EACCES
 
 access denied
@@ -860,6 +875,13 @@ C<scan()>, it will C<croak()>.
 scanbuff takes a raw buffer and scans it. No options are available for this
 function (it is assumed you already unarchived or de-MIMEed the buffer and that
 it is raw).
+
+NOTE: This method will go away in libclamav 0.90. Quote from the mailing list:
+
+    Please do not use cl_scanbuff at all, it's to be removed in 0.90. This
+    function only supports old type signature scanning and will miss many
+    viruses (just try to scan test/clam.exe). You should definitely use
+    cl_scanfile/cl_scandesc instead.
 
 =back
 

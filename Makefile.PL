@@ -1,8 +1,7 @@
 use 5.006;
 
-eval "use Inline::MakeMaker";
-die "Please install Inline::C before continuing: '$@'\n" if $@;
-Inline::MakeMaker->import;
+use lib '.';
+use Inline::MakeMaker; # bundled
 
 my $inc = join " ", (`clamav-config --cflags` =~ /(-I\S+)/g);
 if ($?) {
@@ -50,11 +49,13 @@ my $warned = 0;
 sub config_warn {
     unless ($warned) {
         $warned++;
-        warn "You have an older version of clamav or\n";
-        warn "clamav-config is not in your path\n";
-        warn "If you get compile errors you will either\n";
-        warn "need to upgrade clamav to atleast 0.73\n";
-        warn "or make sure clamav-config is in your path\n";
+        warn "WARNING ------------------------------------------------\n";
+        warn "WARNING You have an older version of clamav or\n";
+        warn "WARNING clamav-config is not in your path\n";
+        warn "WARNING If you get compile errors you will either\n";
+        warn "WARNING need to upgrade clamav to atleast 0.73\n";
+        warn "WARNING or make sure clamav-config is in your path\n";
+        warn "WARNING ------------------------------------------------\n";
     }
 }
 

@@ -32,9 +32,6 @@ SYNOPSIS
         $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
         $c->maxratio(0);
 
-        # Scan a buffer
-        my $status = $c->scanbuff($buff);
-
         # Scan a filehandle (scandesc in clamav)
         # scan(FileHandle or path, Bitfield of options)
         my $status = $c->scan(FH, CL_SCAN_ARCHIVE|CL_SCAN_MAIL);
@@ -53,8 +50,8 @@ SYNOPSIS
 
 DESCRIPTION
     Clam AntiVirus is an anti-virus toolkit for UNIX
-    <http://clamav.elektrapro.com/>. This module provide a simple interface
-    to its C API.
+    <http://www.clamav.com/>. This module provide a simple interface to its
+    C API.
 
   EXPORT
     None by default.
@@ -147,6 +144,12 @@ DESCRIPTION
     CL_EOLE2
      OLE2 handler error
 
+    CL_EMSCOMP
+     compress.exe handler error
+
+    CL_EMSCAB
+     MS CAB module error
+
     CL_EACCES
      access denied
 
@@ -226,6 +229,14 @@ METHODS
      scanbuff takes a raw buffer and scans it. No options are available for
      this function (it is assumed you already unarchived or de-MIMEed the
      buffer and that it is raw).
+
+     NOTE: This method will go away in libclamav 0.90. Quote from the
+     mailing list:
+
+         Please do not use cl_scanbuff at all, it's to be removed in 0.90. This
+         function only supports old type signature scanning and will miss many
+         viruses (just try to scan test/clam.exe). You should definitely use
+         cl_scanfile/cl_scandesc instead.
 
   Data Directory stats
     If the path passed into "new()" is a directory Mail::ClamAV will set

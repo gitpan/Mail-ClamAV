@@ -1,5 +1,14 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.14  Fri Feb 25 10:27:06 PST 2005
+   - The test for scanbuff was broken. Thanks to
+     Werner Lemberg <wl [] gnu dot org> for reporting this
+   - Fixing this test uncovered a taint bug, fixed.
+   - Made the warning in Makefile.PL stand out more.
+   - Some doc updates.
+   - Bundled Inline::MakeMaker so we no longer fatal on
+     missing deps Inline::C.
+
 0.13  Fri Oct 22 06:44:19 PM 2004
    - Updated example code to use the new CL_SCAN_*
      constants.

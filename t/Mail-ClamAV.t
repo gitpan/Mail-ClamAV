@@ -93,9 +93,10 @@ eval { $status = $c->scan($f.substr($0, 0, 0), CL_SCAN_MAIL()) };
 ok($@ and $@ =~ /tainted/, 'Scan tainted croaks');
 
 
-open $fh, "<", $f;
+open $fh, "<", "t/eicarcom2.zip";
 my $msg = do { local $/; <$fh> };
-$c->scanbuff($msg);
+$msg = $1 if $msg =~ /(.*)/s;
+$status = $c->scanbuff($msg);
 ok("$status" eq "Eicar-Test-Signature", 'Scan Buffer');
 ok($status->virus == 1, "Scan Buffer virus status");
 ok((0 + $status) == 1, "Overload status");
