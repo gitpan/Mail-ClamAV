@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.06';
+    $VERSION = '0.07';
 }
 
 # guard against memory errors not being reported
@@ -51,6 +51,9 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_MAIL
     CL_ARCHIVE
     CL_RAW
+    CL_OLE2
+    CL_ENCRYPTED
+    CL_DISABLERAR
 
     CL_VIRUS
     CL_CLEAN
@@ -217,7 +220,7 @@ int clamav_perl_statchkdir(SV *self)
     cl_statinidir(c->path, &c->st);
 }
 
-char *clamav_perl_retdbdir()
+const char *clamav_perl_retdbdir()
 {
     return cl_retdbdir();
 }
@@ -272,7 +275,8 @@ void clamav_perl__scanbuff(SV *self, SV *buff)
     struct clamav_perl *c = SvClam(self);
     STRLEN len;
     int status;
-    char *b, *msg;
+    char *b;
+    const char *msg;
     SV *smsg;
     Inline_Stack_Vars;
 
@@ -311,7 +315,7 @@ void clamav_perl__scanfd(SV *self, int fd, int options)
     STRLEN len;
     int status;
     unsigned long int scanned;
-    char *msg;
+    const char *msg;
     SV *smsg, *sscanned;
     Inline_Stack_Vars;
 
@@ -347,7 +351,7 @@ void clamav_perl__scanfile(SV *self, char *path, int options)
     STRLEN len;
     int status;
     unsigned long int scanned;
-    char *msg;
+    const char *msg;
     SV *smsg, *sscanned;
     Inline_Stack_Vars;
 
@@ -379,7 +383,7 @@ void clamav_perl__scanfile(SV *self, char *path, int options)
 
 static void error(int errcode)
 {
-    char *e;
+    const char *e;
     SV *err = get_sv("Mail::ClamAV::Error", TRUE);
 
     sv_setiv(err, (IV)errcode);
@@ -409,9 +413,14 @@ int clamav_perl_constant(char *name)
     if (strEQ("CL_EZIP", name)) return CL_EZIP;
     if (strEQ("CL_MIN_LENGTH", name)) return CL_MIN_LENGTH;
     if (strEQ("CL_NUM_CHILDS", name)) return CL_NUM_CHILDS;
+
     if (strEQ("CL_MAIL", name)) return CL_MAIL;
     if (strEQ("CL_ARCHIVE", name)) return CL_ARCHIVE;
     if (strEQ("CL_RAW", name)) return CL_RAW;
+    if (strEQ("CL_OLE2", name)) return CL_OLE2;
+    if (strEQ("CL_ENCRYPTED", name)) return CL_ENCRYPTED;
+    if (strEQ("CL_DISABLERAR", name)) return CL_RAW;
+
     if (strEQ("CL_VIRUS", name)) return CL_VIRUS;
     if (strEQ("CL_CLEAN", name)) return CL_CLEAN;
     croak("Invalid function %s", name);

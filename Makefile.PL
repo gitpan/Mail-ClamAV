@@ -1,17 +1,33 @@
 use 5.006;
-use Inline::MakeMaker;
 
-my $libs = $ENV{LIBS} || '-lclamav';
-my $inc = $ENV{INC} || '-I/usr/include';
-$libs .= ' -lclamav' unless $libs =~ /-lclamav/;
+eval "use Inline::MakeMaker";
+die "Please install Inline::C before continuing: '$@'\n" if $@;
+Inline::MakeMaker->import;
+
+my ($libs, $inc) = ('', '-I/usr/include');
+@ARGV = grep {
+    if (/^LIBS=(.+)/) {
+        $libs = $1;
+        0;
+    }
+    elsif (/^INC=(.+)/) {
+        $inc = $1;
+        0;
+    }
+    else {
+        1;
+    }
+} @ARGV;
+for (qw(z bz2 gmp pthread clamav)) {
+    $libs .= ' -l' . $_ unless $libs =~ /-l\Q$_\E\b/;
+}
 
 open my $fh, ">", "config.pl" or die "Could not open config.pl: $!";
 print $fh <<END;
 use Inline C => Config =>
-    VERSION  => \$VERSION,
+    VERSION  => \$Mail::ClamAV::VERSION,
     PREFIX   => 'clamav_perl_',
     NAME     => "Mail::ClamAV",
-    OPTIMIZE => '-g',
     INC      => "$inc",
     LIBS     => "$libs";
 1;

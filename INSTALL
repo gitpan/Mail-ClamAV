@@ -4,19 +4,20 @@ Mail::ClamAV Installation
 First you will need to install libclamav. You can find links to download
 libclamav at: http://www.clamav.net/
 
-This module has been tested with clamav-0.60 and clamav-0.65 releases. I can
-not say for sure if it will work with other versions but chances are it will.
+You will need atleast clamav-0.70-rc.
+
+You will also need Inline::C which depends on Parse::RecDescent. You can use
+CPAN to install both like this:
+    perl -MCPAN -e 'install("Inline::C")'
 
 If you have libclamav installed into a non-standard path you will need to
 specify the path to Makefile.PL. You can do that like this:
-
-    LIBS=-I/path/to/headers INC=-L/path/to/libs perl Makefile.PL
+    perl Makefile.PL LIBS=-I/path/to/headers INC=-L/path/to/libs
 
 The path specified by -I must contain clamav.h, and the path specified by -L
 must contain libclamav.so.
 
 The next steps are simple:
-
     make
     make test
     make install

@@ -1,8 +1,7 @@
 use Inline C => Config =>
-    VERSION  => $VERSION,
+    VERSION  => $Mail::ClamAV::VERSION,
     PREFIX   => 'clamav_perl_',
     NAME     => "Mail::ClamAV",
-    OPTIMIZE => '-g',
     INC      => "-I/usr/include",
-    LIBS     => "-lclamav";
+    LIBS     => " -lz -lbz2 -lgmp -lpthread -lclamav";
 1;
