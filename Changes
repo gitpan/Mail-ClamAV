@@ -1,5 +1,23 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.09  Thu Jun 17 01:10:58 PM 2004
+   - More fun with the hook to remove config code. It has now
+     been made a top level target that works on the code in the
+     blib directory. This was needed for systems like Gentoo.
+
+0.09  Thu Jun 17 01:06:09 PM 2004
+   - Updated to use 0.73's clamav-config program to get
+     include paths and compiler flags.
+
+0.09  Fri Apr  2 08:02:49 AM 2004
+   - fixed statchkdir, it was not returning the proper value
+   - updated documentation
+
+0.09  Fri Apr  2 07:49:08 AM 2004
+   - Moved hook for removing temporary code from
+     ClamAV.pm from after install to during the all
+     target.
+
 0.08  Thu Apr  1 04:59:27 PM 2004
    - Perl 5.6.1 does not understand a 'const' C function
      for binding with XS. Removed the 'const' definiton from

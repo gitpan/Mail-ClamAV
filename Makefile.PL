@@ -4,22 +4,22 @@ eval "use Inline::MakeMaker";
 die "Please install Inline::C before continuing: '$@'\n" if $@;
 Inline::MakeMaker->import;
 
-my ($libs, $inc) = ('', '-I/usr/include');
-@ARGV = grep {
-    if (/^LIBS=(.+)/) {
-        $libs = $1;
-        0;
-    }
-    elsif (/^INC=(.+)/) {
-        $inc = $1;
-        0;
-    }
-    else {
-        1;
-    }
-} @ARGV;
-for (qw(z bz2 gmp pthread clamav)) {
-    $libs .= ' -l' . $_ unless $libs =~ /-l\Q$_\E\b/;
+my $inc = join " ", (`clamav-config --cflags` =~ /(-I\S+)/g);
+if ($?) {
+    config_warn();
+    $inc = '-I/usr/include';
+}
+else {
+    chomp $inc;
+}
+
+my $libs = `clamav-config --libs`;
+if ($?) {
+    config_warn();
+    $libs = q(-lz -lbz2 -lgmp -lpthread -lclamav);
+}
+else {
+    chomp $libs;
 }
 
 open my $fh, ">", "config.pl" or die "Could not open config.pl: $!";
@@ -34,16 +34,30 @@ use Inline C => Config =>
 END
 close $fh;
 
-sub MY::install {
+sub MY::top_targets {
     package MY;
-    my $out = shift->SUPER::install(@_);
+    my $out = shift->SUPER::top_targets(@_);
     my $link_code = q{
-	$(PERL) -n -i -e '$$a=1 if/^\s*#\s*removed on install.*/;print if!$$a;$$a=0if/^\s*#\s*end[^\n]*/;' $(INSTALLSITEARCH)/Mail/ClamAV.pm
+	@$(PERL) -n -i -e '$$a=1 if/^\s*#\s*removed on install.*/;print if!$$a;$$a=0if/^\s*#\s*end[^\n]*/;' blib/lib/Mail/ClamAV.pm
 };
-    $out =~ s/(\n\npure_site_install ::(?:.(?!\n\n))+.)/\1$link_code/s;
-    $out;
+    $out =~ s/\n\n/\n\nremove_on_install:\n$link_code\n/;
+    $out =~ s/all :: pure_all/all :: pure_all remove_on_install/;
+    return $out;
 }
 
+my $warned = 0;
+sub config_warn {
+    unless ($warned) {
+        $warned++;
+        warn "You have an older version of clamav or\n";
+        warn "clamav-config is not in your path\n";
+        warn "If you get compile errors you will either\n";
+        warn "need to upgrade clamav to atleast 0.73\n";
+        warn "or make sure clamav-config is in your path\n";
+    }
+}
+
+# NOTE: most of these options are ignored by Inline::MakeMaker
 WriteMakefile(
     NAME                => 'Mail::ClamAV',
     VERSION_FROM        => 'ClamAV.pm', # finds $VERSION

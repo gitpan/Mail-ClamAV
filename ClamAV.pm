@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.08';
+    $VERSION = '0.09';
 }
 
 # guard against memory errors not being reported
@@ -28,32 +28,38 @@ our @ISA = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw(
     retdbdir
 
-    CL_EACCES
-    CL_EBZIP
-    CL_EFSYNC
-    CL_EGZIP
-    CL_EMALFDB
-    CL_EMALFZIP
-    CL_EMAXFILES
+    CL_CLEAN
+    CL_VIRUS
     CL_EMAXREC
     CL_EMAXSIZE
-    CL_EMEM
-    CL_ENULLARG
-    CL_EOPEN
-    CL_EPATSHORT
+    CL_EMAXFILES
     CL_ERAR
-    CL_ETMPDIR
-    CL_ETMPFILE
     CL_EZIP
-    CL_MIN_LENGTH
-    CL_NUM_CHILDS
+    CL_EMALFZIP
+    CL_EGZIP
+    CL_EBZIP
+    CL_EOLE2
+    CL_EACCES
+    CL_ENULLARG
+
+    CL_ETMPFILE
+    CL_EFSYNC
+    CL_EMEM
+    CL_EOPEN
+    CL_EMALFDB
+    CL_EPATSHORT
+    CL_ETMPDIR
+    CL_ECVD
+    CL_ECVDEXTR
+    CL_EMD5
+    CL_EDSIG
 
     CL_MAIL
     CL_ARCHIVE
     CL_RAW
     CL_OLE2
     CL_ENCRYPTED
-    CL_DISABLERAR
+    CL_RAW
 
     CL_VIRUS
     CL_CLEAN
@@ -218,6 +224,7 @@ int clamav_perl_statchkdir(SV *self)
     ret = cl_statchkdir(&c->st);
     cl_statfree(&c->st);
     cl_statinidir(c->path, &c->st);
+    return ret;
 }
 
 char *clamav_perl_retdbdir()
@@ -394,25 +401,31 @@ static void error(int errcode)
 
 int clamav_perl_constant(char *name)
 {
-    if (strEQ("CL_EACCES", name)) return CL_EACCES;
-    if (strEQ("CL_EBZIP", name)) return CL_EBZIP;
-    if (strEQ("CL_EFSYNC", name)) return CL_EFSYNC;
-    if (strEQ("CL_EGZIP", name)) return CL_EGZIP;
-    if (strEQ("CL_EMALFDB", name)) return CL_EMALFDB;
-    if (strEQ("CL_EMALFZIP", name)) return CL_EMALFZIP;
-    if (strEQ("CL_EMAXFILES", name)) return CL_EMAXFILES;
+    if (strEQ("CL_CLEAN", name)) return CL_CLEAN;
+    if (strEQ("CL_VIRUS", name)) return CL_VIRUS;
     if (strEQ("CL_EMAXREC", name)) return CL_EMAXREC;
     if (strEQ("CL_EMAXSIZE", name)) return CL_EMAXSIZE;
-    if (strEQ("CL_EMEM", name)) return CL_EMEM;
-    if (strEQ("CL_ENULLARG", name)) return CL_ENULLARG;
-    if (strEQ("CL_EOPEN", name)) return CL_EOPEN;
-    if (strEQ("CL_EPATSHORT", name)) return CL_EPATSHORT;
+    if (strEQ("CL_EMAXFILES", name)) return CL_EMAXFILES;
     if (strEQ("CL_ERAR", name)) return CL_ERAR;
-    if (strEQ("CL_ETMPDIR", name)) return CL_ETMPDIR;
-    if (strEQ("CL_ETMPFILE", name)) return CL_ETMPFILE;
     if (strEQ("CL_EZIP", name)) return CL_EZIP;
-    if (strEQ("CL_MIN_LENGTH", name)) return CL_MIN_LENGTH;
-    if (strEQ("CL_NUM_CHILDS", name)) return CL_NUM_CHILDS;
+    if (strEQ("CL_EMALFZIP", name)) return CL_EMALFZIP;
+    if (strEQ("CL_EGZIP", name)) return CL_EGZIP;
+    if (strEQ("CL_EBZIP", name)) return CL_EBZIP;
+    if (strEQ("CL_EOLE2", name)) return CL_EOLE2;
+    if (strEQ("CL_EACCES", name)) return CL_EACCES;
+    if (strEQ("CL_ENULLARG", name)) return CL_ENULLARG;
+
+    if (strEQ("CL_ETMPFILE", name)) return CL_ETMPFILE;
+    if (strEQ("CL_EFSYNC", name)) return CL_EFSYNC;
+    if (strEQ("CL_EMEM", name)) return CL_EMEM;
+    if (strEQ("CL_EOPEN", name)) return CL_EOPEN;
+    if (strEQ("CL_EMALFDB", name)) return CL_EMALFDB;
+    if (strEQ("CL_EPATSHORT", name)) return CL_EPATSHORT;
+    if (strEQ("CL_ETMPDIR", name)) return CL_ETMPDIR;
+    if (strEQ("CL_ECVD", name)) return CL_ECVD;
+    if (strEQ("CL_ECVDEXTR", name)) return CL_ECVDEXTR;
+    if (strEQ("CL_EMD5", name)) return CL_EMD5;
+    if (strEQ("CL_EDSIG", name)) return CL_EDSIG;
 
     if (strEQ("CL_MAIL", name)) return CL_MAIL;
     if (strEQ("CL_ARCHIVE", name)) return CL_ARCHIVE;
@@ -528,27 +541,44 @@ Options for scanning.
 
 =over 1
 
-=item CL_MAIL
+=item CL_RAW
 
-enables mbox and Maildir scanning
-
-WARNING WARNING WARNING
-The MIME parsing in clamav is still beta quality code as of the time of this
-writing [Tue Feb 10 10:09:56 PST 2004]. It B<will> segfault with certain emails.
-This tested with current CVS of clamav.
+It does nothing. Please use it (alone) if you don't want to scan any special files.
 
 =item CL_ARCHIVE
 
-enables archive scanning
+This flag enables the transparent archive scanning.
 
-=item CL_RAW
+=item CL_DISABLERAR
 
-disables archive scanning
+Disables the built-in RAR unpacker which is known to cause memory leaks.
+
+=item CL_ENCRYPTED
+
+Marks encrypted archives as viruses (Enccrypted.Zip, Encrypted.RAR).
+
+=item CL_MAIL
+
+Required to scan various types of mail files.
+
+B<WARNING> B<WARNING> B<WARNING>
+The MIME parsing in clamav is still beta quality code as of the time of this
+writing [Fri Apr  2 09:16:25 PST 2004]. It B<will> segfault with certain emails.
+This tested with current CVS of clamav.
+
+=item CL_OLE2
+
+Enables support for Microsoft Office document files.
 
 =back
 
-Status returns. These are the first item in the list returned by C<scan()> and
-C<scanbuff()> when put into numeric context
+Status returns. You can get the status code by putting the status object
+returned into into numeric context.
+
+    my $status = $c->scan("foo.txt");
+    print "Status: ", ($status + 0), "\n";
+
+The following are returned statuses if no error occured.
 
 =over 1
 
@@ -560,72 +590,55 @@ no viruses found
 
 virus found, put the status in scalar context to see the type
 
-These are the error status codes which you can get by putting
-$Mail::ClamAV::Error in numeric context
-
 =back
+
+Error statuses
 
 =over 1
 
 =item CL_EMAXREC
 
-Recursion limit exceeded.
+recursion level limit exceeded
 
 =item CL_EMAXSIZE
 
-File size limit exceeded.
+size limit exceeded
 
 =item CL_EMAXFILES
 
-Files number limit exceeded.
+files limit exceeded
 
 =item CL_ERAR
 
-RAR module failure.
+rar handler error
 
 =item CL_EZIP
 
-Zip module failure.
+zip handler error
 
 =item CL_EMALFZIP
 
-Malformed Zip detected.
+malformed zip
 
 =item CL_EGZIP
 
-GZip module failure.
+gzip handler error
 
-=item CL_ETMPFILE
+=item CL_EBZIP
 
-Unable to create temporary file.
+bzip2 handler error
 
-=item CL_ETMPDIR
+=item CL_EOLE2
 
-Unable to create temporary directory.
+OLE2 handler error
 
-=item CL_EFSYNC
+=item CL_EACCES
 
-Unable to synchronize file <-> disk.
-
-=item CL_EMEM
-
-Unable to allocate memory.
-
-=item CL_EOPEN
-
-Unable to open file or directory.
-
-=item CL_EMALFDB
-
-Malformed database.
-
-=item CL_EPATSHORT
-
-Too short pattern detected.
+access denied
 
 =item CL_ENULLARG
 
-Null argument passed when initialized is required.
+null argument error
 
 =back
 
