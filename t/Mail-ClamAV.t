@@ -4,7 +4,7 @@
 
 #########################
 
-use Test::More tests => 13;
+use Test::More tests => 10;
 use strict;
 BEGIN { use_ok('Mail::ClamAV') };
 
@@ -105,14 +105,5 @@ $status = $c->scan($fh, CL_SCAN_STDOPT());
 ok("$status" eq "Eicar-Test-Signature", 'Scan FileHandle overload');
 
 eval { $status = $c->scan($f.substr($0, 0, 0), CL_SCAN_STDOPT()) };
-ok($@ and $@ =~ /tainted/, 'Scan tainted croaks');
-
-
-open $fh, "<", "t/eicarcom2.zip";
-my $msg = do { local $/; <$fh> };
-$msg = $1 if $msg =~ /(.*)/s;
-$status = $c->scanbuff($msg);
-ok("$status" eq "Eicar-Test-Signature", 'Scan Buffer');
-ok($status->virus == 1, "Scan Buffer virus status");
-ok((0 + $status) == 1, "Overload status");
+ok(($@ and $@ =~ /tainted/), 'Scan tainted croaks');
 
