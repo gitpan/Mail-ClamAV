@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.12';
+    $VERSION = '0.13';
 }
 
 # guard against memory errors not being reported
@@ -21,6 +21,18 @@ our @ISA = qw(Exporter);
 # Items to export into callers namespace by default. Note: do not export
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
+
+# Backwards compatible constants
+sub CL_RAW            () { CL_SCAN_RAW() }
+sub CL_ARCHIVE        () { CL_SCAN_ARCHIVE() }
+sub CL_MAIL           () { CL_SCAN_MAIL() }
+sub CL_DISABLERAR     () { CL_SCAN_DISABLERAR() }
+sub CL_OLE2           () { CL_SCAN_OLE2() }
+sub CL_ENCRYPTED      () { CL_SCAN_BLOCKENCRYPTED() }
+sub CL_HTML           () { CL_SCAN_HTML() }
+sub CL_PE             () { CL_SCAN_PE() }
+sub CL_BLOCKBROKEN    () { CL_SCAN_BLOCKBROKEN() }
+sub CL_BLOCKMAX       () { CL_SCAN_BLOCKMAX() }
 
 # This allows declaration   use Mail::ClamAV ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
@@ -65,6 +77,20 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_SCAN_BLOCKBROKEN
     CL_SCAN_MAILURL
     CL_SCAN_BLOCKMAX
+
+    CL_RAW
+    CL_ARCHIVE
+    CL_MAIL
+    CL_DISABLERAR
+    CL_OLE2
+    CL_BLOCKENCRYPTED
+    CL_HTML
+    CL_PE
+    CL_BLOCKBROKEN
+    CL_MAILURL
+    CL_BLOCKMAX
+
+    CL_SCAN_STDOPT
 
     CL_VIRUS
     CL_CLEAN
@@ -574,10 +600,10 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
 
     # Scan a filehandle (scandesc in clamav)
     # scan(FileHandle or path, Bitfield of options)
-    my $status = $c->scan(FH, CL_ARCHIVE|CL_MAIL);
+    my $status = $c->scan(FH, CL_SCAN_ARCHIVE|CL_SCAN_MAIL);
 
     # Scan a file (scanfile in clamav)
-    my $status = $c->scan("/path/to/file.eml", CL_MAIL);
+    my $status = $c->scan("/path/to/file.eml", CL_SCAN_MAIL);
 
     # $status is an overloaded object
     die "Failed to scan: $status" unless $status;
@@ -750,7 +776,7 @@ was compiled.
 =head2 Settings
 
 NOTE
-These settings only apply to C<scan()> and archives (CL_ARCHIVE).
+These settings only apply to C<scan()> and archives (CL_SCAN_ARCHIVE).
 
 =over 1
 
@@ -821,8 +847,8 @@ Returns the number of messages scanned. Only works with archives.
 =item scan(FileHandle or Path, Bitfield of options)
 
 C<scan()> takes a FileHanle or path and passed the file descriptor for that off
-to clamav.  The second argument is a bitfield of options, CL_MAIL, CL_ARCHIVE
-or CL_RAW L<"Exportable constants">.
+to clamav.  The second argument is a bitfield of options, CL_SCAN_MAIL,
+CL_SCAN_ARCHIVE or CL_SCAN_RAW L<"Exportable constants">.
 
 This function returns the status object discussed earlier.
 

@@ -37,10 +37,10 @@ SYNOPSIS
 
         # Scan a filehandle (scandesc in clamav)
         # scan(FileHandle or path, Bitfield of options)
-        my $status = $c->scan(FH, CL_ARCHIVE|CL_MAIL);
+        my $status = $c->scan(FH, CL_SCAN_ARCHIVE|CL_SCAN_MAIL);
 
         # Scan a file (scanfile in clamav)
-        my $status = $c->scan("/path/to/file.eml", CL_MAIL);
+        my $status = $c->scan("/path/to/file.eml", CL_SCAN_MAIL);
 
         # $status is an overloaded object
         die "Failed to scan: $status" unless $status;
@@ -163,7 +163,8 @@ DESCRIPTION
 
 METHODS
   Settings
-    NOTE These settings only apply to "scan()" and archives (CL_ARCHIVE).
+    NOTE These settings only apply to "scan()" and archives
+    (CL_SCAN_ARCHIVE).
 
     maxreclevel
      Sets the maximum recursion level [default 5].
@@ -214,7 +215,7 @@ METHODS
     scan(FileHandle or Path, Bitfield of options)
      "scan()" takes a FileHanle or path and passed the file descriptor for
      that off to clamav. The second argument is a bitfield of options,
-     CL_MAIL, CL_ARCHIVE or CL_RAW "Exportable constants".
+     CL_SCAN_MAIL, CL_SCAN_ARCHIVE or CL_SCAN_RAW "Exportable constants".
 
      This function returns the status object discussed earlier.
 

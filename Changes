@@ -1,5 +1,13 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.13  Fri Oct 22 06:44:19 PM 2004
+   - Updated example code to use the new CL_SCAN_*
+     constants.
+   - Added CL_SCAN_STDOPT to exports.
+   - Added backwards compatible constants.
+   Thanks to Mark Martinec <Mark * Martinec [] ijs * si>
+     for reporting all these.
+
 0.12  Mon Oct 18 05:22:54 PM 2004
    - 0.80 came out today. Updated code to work with the new
      version, this however breaks backwards compatibility.
