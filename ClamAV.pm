@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.09';
+    $VERSION = '0.10';
 }
 
 # guard against memory errors not being reported
@@ -60,6 +60,9 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_OLE2
     CL_ENCRYPTED
     CL_RAW
+    CL_DISABLERAR
+    CL_MIN_LENGTH
+    CL_NUM_CHILDS
 
     CL_VIRUS
     CL_CLEAN
@@ -432,7 +435,9 @@ int clamav_perl_constant(char *name)
     if (strEQ("CL_RAW", name)) return CL_RAW;
     if (strEQ("CL_OLE2", name)) return CL_OLE2;
     if (strEQ("CL_ENCRYPTED", name)) return CL_ENCRYPTED;
-    if (strEQ("CL_DISABLERAR", name)) return CL_RAW;
+    if (strEQ("CL_DISABLERAR", name)) return CL_DISABLERAR;
+    if (strEQ("CL_NUM_CHILDS", name)) return CL_NUM_CHILDS;
+    if (strEQ("CL_MIN_LENGTH", name)) return CL_MIN_LENGTH;
 
     if (strEQ("CL_VIRUS", name)) return CL_VIRUS;
     if (strEQ("CL_CLEAN", name)) return CL_CLEAN;

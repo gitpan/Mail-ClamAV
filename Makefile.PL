@@ -16,11 +16,12 @@ else {
 my $libs = `clamav-config --libs`;
 if ($?) {
     config_warn();
-    $libs = q(-lz -lbz2 -lgmp -lpthread -lclamav);
+    $libs = q(-lz -lbz2 -lgmp -lpthread);
 }
 else {
     chomp $libs;
 }
+$libs .= " -lclamav";
 
 open my $fh, ">", "config.pl" or die "Could not open config.pl: $!";
 print $fh <<END;
