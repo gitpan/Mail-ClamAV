@@ -1,6 +1,9 @@
 Revision history for Perl extension Mail::ClamAV.
 
-0.02  Fri Oct 10 14:43:38 PDT 2003
+0.02  Fri Oct 10 06:46:52 PM 2003
+    - fixed problems in overloading code for the status object
+
+0.01  Fri Oct 10 14:43:38 PDT 2003
     - moved to use Inline::MakeMaker
 
 0.01  Fri Oct 10 06:21:03 2003

@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-$VERSION = '0.01';
+$VERSION = '0.02';
 }
 
 # guard against memory errors not being reported
@@ -389,7 +389,7 @@ import Mail::ClamAV qw(CL_CLEAN CL_VIRUS);
 
 use overload
     '""'   => sub { $_[0]->error },
-    'cmd'  => sub { "$_[0]" cmp $_[2] },
+    'cmp'  => sub { $_[2] ? $_[1] cmp "$_[0]" : "$_[0]" cmp $_[1] },
     'bool' => sub {
         $_[0]->errno == CL_CLEAN() or
         $_[0]->errno == CL_VIRUS()
@@ -421,7 +421,7 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
     # error status code which corresponds to the constants which
     # can be exported
     my $c = new Mail::ClamAV("/path/to/directory/or/file")
-        or die "Failed to load db: $Mail::ClamAV::Error";
+        or die "Failed to load db: $Mail::ClamAV::Error (", 0+$Mail::;
 
     # You can get retdbdir() to get the database dir in
     # clamav's conf
