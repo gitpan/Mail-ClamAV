@@ -3,7 +3,7 @@
 
 #########################
 
-use Test::More tests => 8;
+use Test::More tests => 11;
 use strict;
 BEGIN { use_ok('Mail::ClamAV') };
 
@@ -30,6 +30,16 @@ ok( $fail == 0 , 'Constants' );
 my $c = new Mail::ClamAV(retdbdir());
 $|=1;
 $c->buildtrie;
+
+$c->maxreclevel(6);
+ok($c->maxreclevel == 6, 'Set/Get maxreclevel');
+
+$c->maxfiles(1001);
+ok($c->maxfiles == 1001, 'Set/Get maxfiles');
+
+$c->maxfilesize(1024 * 1028 * 20);
+ok(($c->maxfilesize == (1024 * 1028 * 20)), 'Set/Get maxfilesize');
+
 my $f = "t/virus.eml";
 my $status = $c->scan($f, CL_MAIL());
 ok("$status" eq "Eicar-Test-Signature", 'Scan File');

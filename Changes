@@ -1,5 +1,12 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.11  Mon Jun 28 10:26:50 AM 2004
+   - Inline_Stack_Item() is indexed at zero. All set/get
+     methods are broken because of this mistake. Thanks to
+     Michael Carmack <karmak [] karmak * org> for reporting
+     this.
+   - Added tests for settings so this doesn't happen again.
+
 0.10  Thu Jun 17 01:35:17 PM 2004
    - Whoops, should always make test before upload..
 

@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.10';
+    $VERSION = '0.11';
 }
 
 # guard against memory errors not being reported
@@ -248,7 +248,7 @@ int clamav_perl_maxreclevel(SV *self, ...)
         SV *max;
         if (Inline_Stack_Items > 2)
             croak("Invalid number of arguments to maxreclevel()");
-        max = Inline_Stack_Item(2);
+        max = Inline_Stack_Item(1);
         SvClam(self)->limits.maxreclevel = SvIV(max);
     }
     return SvClam(self)->limits.maxreclevel;
@@ -261,7 +261,7 @@ int clamav_perl_maxfiles(SV *self, ...)
         SV *max;
         if (Inline_Stack_Items > 2)
             croak("Invalid number of arguments to maxfiles()");
-        max = Inline_Stack_Item(2);
+        max = Inline_Stack_Item(1);
         SvClam(self)->limits.maxfiles = SvIV(max);
     }
     return SvClam(self)->limits.maxfiles;
@@ -274,7 +274,7 @@ int clamav_perl_maxfilesize(SV *self, ...)
         SV *max;
         if (Inline_Stack_Items > 2)
             croak("Invalid number of arguments to maxfilesize()");
-        max = Inline_Stack_Item(2);
+        max = Inline_Stack_Item(1);
         SvClam(self)->limits.maxfilesize = SvIV(max);
     }
     return SvClam(self)->limits.maxfilesize;
