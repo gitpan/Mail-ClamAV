@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.14';
+    $VERSION = '0.15';
 }
 
 # guard against memory errors not being reported
@@ -95,10 +95,6 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_BLOCKBROKEN
     CL_MAILURL
     CL_BLOCKMAX
-
-
-    CL_VIRUS
-    CL_CLEAN
 ) ] );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );

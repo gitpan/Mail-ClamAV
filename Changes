@@ -1,5 +1,11 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.15  Fri Mar  4 15:43:20 PST 2005
+   - A quicky release. Somehow my version of libclamav
+     (the latest) can scan the test virus without the
+     ZIP option turned on. We now use CL_SCAN_STDOPT
+     for all test scans.
+
 0.14  Fri Feb 25 10:27:06 PST 2005
    - The test for scanbuff was broken. Thanks to
      Werner Lemberg <wl [] gnu dot org> for reporting this

@@ -14,6 +14,7 @@ my $fail = 0;
 foreach my $constname (qw(
     CL_CLEAN
     CL_VIRUS
+
     CL_EMAXREC
     CL_EMAXSIZE
     CL_EMAXFILES
@@ -23,6 +24,8 @@ foreach my $constname (qw(
     CL_EGZIP
     CL_EBZIP
     CL_EOLE2
+    CL_EMSCOMP
+    CL_EMSCAB
     CL_EACCES
     CL_ENULLARG
 
@@ -37,6 +40,8 @@ foreach my $constname (qw(
     CL_ECVDEXTR
     CL_EMD5
     CL_EDSIG
+    CL_EIO
+    CL_EFORMAT
 
     CL_SCAN_RAW
     CL_SCAN_ARCHIVE
@@ -49,9 +54,19 @@ foreach my $constname (qw(
     CL_SCAN_BLOCKBROKEN
     CL_SCAN_MAILURL
     CL_SCAN_BLOCKMAX
+    CL_SCAN_STDOPT
 
-    CL_VIRUS
-    CL_CLEAN)) {
+    CL_RAW
+    CL_ARCHIVE
+    CL_MAIL
+    CL_DISABLERAR
+    CL_OLE2
+    CL_BLOCKENCRYPTED
+    CL_HTML
+    CL_PE
+    CL_BLOCKBROKEN
+    CL_MAILURL
+    CL_BLOCKMAX)) {
   next if (eval "my \$a = $constname; 1");
   if ($@ =~ /^Your vendor has not defined Mail::ClamAV macro $constname/) {
     print "# pass: $@";
@@ -78,18 +93,18 @@ $c->maxfilesize(1024 * 1028 * 20);
 ok(($c->maxfilesize == (1024 * 1028 * 20)), 'Set/Get maxfilesize');
 
 my $f = "t/virus.eml";
-my $status = $c->scan($f, CL_SCAN_MAIL());
+my $status = $c->scan($f, CL_SCAN_STDOPT());
 ok("$status" eq "Eicar-Test-Signature", 'Scan File');
 open my $fh, "<", $f;
-ok($c->scan($fh, CL_SCAN_MAIL())->virus, 'Scan FileHandle');
+ok($c->scan($fh, CL_SCAN_STDOPT())->virus, 'Scan FileHandle');
 
-$status = $c->scan($f, CL_SCAN_MAIL());
+$status = $c->scan($f, CL_SCAN_STDOPT());
 ok("$status" eq "Eicar-Test-Signature", 'Scan File overload');
 seek $fh, 0, 0;
-$status = $c->scan($fh, CL_SCAN_MAIL());
+$status = $c->scan($fh, CL_SCAN_STDOPT());
 ok("$status" eq "Eicar-Test-Signature", 'Scan FileHandle overload');
 
-eval { $status = $c->scan($f.substr($0, 0, 0), CL_SCAN_MAIL()) };
+eval { $status = $c->scan($f.substr($0, 0, 0), CL_SCAN_STDOPT()) };
 ok($@ and $@ =~ /tainted/, 'Scan tainted croaks');
 
 
