@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.07';
+    $VERSION = '0.08';
 }
 
 # guard against memory errors not being reported
@@ -220,9 +220,9 @@ int clamav_perl_statchkdir(SV *self)
     cl_statinidir(c->path, &c->st);
 }
 
-const char *clamav_perl_retdbdir()
+char *clamav_perl_retdbdir()
 {
-    return cl_retdbdir();
+    return (char *)cl_retdbdir();
 }
 
 void clamav_perl_buildtrie(SV *self)

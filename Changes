@@ -1,5 +1,11 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.08  Thu Apr  1 04:59:27 PM 2004
+   - Perl 5.6.1 does not understand a 'const' C function
+     for binding with XS. Removed the 'const' definiton from
+     clamav_perl_retdbdir(). Thanks to Homer <hparker _at_ homershut.net>
+     for reporting this
+
 0.07  Wed Mar 24 02:34:47 PM 2004
     - Added support for the new 0.70_rc library. This
       unfortunatly it no longer works with anything
