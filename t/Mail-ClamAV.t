@@ -3,7 +3,7 @@
 
 #########################
 
-use Test::More tests => 4;
+use Test::More tests => 6;
 use strict;
 BEGIN { use_ok('Mail::ClamAV') };
 
@@ -34,3 +34,8 @@ ok($c->scan($f, CL_MAIL())->virus, 'Scan File');
 open my $fh, "<", $f;
 ok($c->scan($fh, CL_MAIL())->virus, 'Scan FileHandle');
 
+my $status = $c->scan($f, CL_MAIL());
+ok("$status" eq "Worm.Gibe.F", 'Scan File overload');
+seek $fh, 0, 0;
+$status = $c->scan($fh, CL_MAIL());
+ok("$status" eq "Worm.Gibe.F", 'Scan FileHandle overload');

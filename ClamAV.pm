@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.03';
+    $VERSION = '0.04';
 }
 
 # guard against memory errors not being reported
@@ -293,16 +293,18 @@ void clamav_perl__scanfd(SV *self, int fd, int options)
     if (scanned == 0)
         scanned = 1;
 
+    smsg = sv_newmortal();
+    sv_setiv(smsg, (IV)status);
+
     /* msg is some random memory if no virus was found */
     if (status == CL_VIRUS)
-        smsg = sv_2mortal(newSVpv(msg, 0));
+        sv_setpv(smsg, msg);
     else if (status == CL_CLEAN)
-        smsg = sv_2mortal(newSVpv("Clean", 0));
+        sv_setpv(smsg, "Clean");
     else
-        smsg = sv_2mortal(newSVpv(cl_perror(status), 0));
+        sv_setpv(smsg, cl_perror(status));
 
-    sv_setiv(smsg, (IV)status);
-    SvIOK(smsg);
+    SvIOK_on(smsg);
     Inline_Stack_Push(smsg);
     sscanned = sv_2mortal(newSViv(scanned));
     Inline_Stack_Push(sscanned);

@@ -1,5 +1,12 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.04  Wed Oct 15 09:26:10 AM 2003
+    - Added a test for the overloaded status object
+
+0.04  Wed Oct 15 09:24:10 AM 2003
+    - Fixed problems with _scanfd not returning the correct type of scalar.
+      Reported by Michael Werski <mwe at nwu.net>
+
 0.03  Tue Oct 14 05:11:42 AM 2003
     - Set number scanned to zero if an error happend
 
