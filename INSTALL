@@ -10,7 +10,7 @@ not say for sure if it will work with other versions but chances are it will.
 If you have libclamav installed into a non-standard path you will need to
 specify the path to Makefile.PL. You can do that like this:
 
-    LIBS='-I/path/to/headers -L/path/to/libs' perl Makefile.PL
+    LIBS=-I/path/to/headers INC=-L/path/to/libs perl Makefile.PL
 
 The path specified by -I must contain clamav.h, and the path specified by -L
 must contain libclamav.so.

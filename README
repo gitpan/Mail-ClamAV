@@ -8,7 +8,7 @@ SYNOPSIS
         # error status code which corresponds to the constants which
         # can be exported
         my $c = new Mail::ClamAV("/path/to/directory/or/file")
-            or die "Failed to load db: $Mail::ClamAV::Error";
+            or die "Failed to load db: $Mail::ClamAV::Error (", 0+$Mail::;
 
         # You can get retdbdir() to get the database dir in
         # clamav's conf
@@ -17,6 +17,12 @@ SYNOPSIS
 
         # When database is loaded, you must create the proper trie with:
         $c->buildtrie;
+
+        # check to see if we need to reload
+        if ($c->statchkdir) {
+            $c = new Mail::ClamAV(retdbdir());
+            $c->buildtrie;
+        }
 
         # Set some limits (only applies to scan())
         # Only relevant for archives
@@ -42,11 +48,11 @@ SYNOPSIS
         else {
             print "No virus found!\n";
         }
-    
+
 DESCRIPTION
     Clam AntiVirus is an anti-virus toolkit for UNIX
     <http://clamav.elektrapro.com/>. This module provide a simple interface
-    to it's C API.
+    to its C API.
 
   EXPORT
     None by default.
@@ -58,8 +64,8 @@ DESCRIPTION
      enables mbox and Maildir scanning
 
      WARNING WARNING WARNING The MIME parsing in clamav is still beta
-     quality code as of the time of this writing [Fri Oct 10 02:35:09 PM
-     2003]. It will segfault with certain emails. This tested with current
+     quality code as of the time of this writing [Tue Feb 10 10:09:56 PST
+     2004]. It will segfault with certain emails. This tested with current
      CVS of clamav.
 
     CL_ARCHIVE
@@ -185,9 +191,22 @@ METHODS
      this function (it is assumed you already unarchived or de-MIMEed the
      buffer and that it is raw).
 
+  Data Directory stats
+    If the path passed into "new()" is a directory Mail::ClamAV will set
+    things up to check for updated database files. Calling the
+    "statchkdir()" will check the database directory to the stats we have in
+    memory. If anything has changed true is returned, otherwise false.
+
+    NOTE: trying to use "statchkdir()" when you passed in a database file
+    instead of directory will produce a fatal error.
+
+    "statchkdir()" is useful for long running daemons that need to check to
+    see if it is time to reload the database. Reloading is simply getting a
+    new Mail::ClamAV object and initializing it.
+
 SEE ALSO
     The ClamAV API documentation
-    <http://clamav.elektrapro.com/doc/html/node36.html>
+    <http://www.clamav.net/doc/html-0.65/node44.html>
 
 AUTHOR
     Scott Beck <sbeck@gossamer-threads.com>

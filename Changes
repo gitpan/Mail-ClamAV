@@ -1,5 +1,14 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.06  Thu Feb 12 08:11:38 AM 2004
+    - added INC for include paths, LIBS does not work for includes
+    - updated README
+
+0.06  Thu Feb 12 08:04:27 AM 2004
+    - added back accidentally removed code which removes the require
+      code from ClamAV.pm.
+      Reported by Julian Field <mailscanner at ecs.soton.ac.uk>
+
 0.05  Tue Feb 10 10:12:42 AM 2004
     - Finished up statchkdir
     - more docs updates

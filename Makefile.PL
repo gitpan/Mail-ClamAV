@@ -1,7 +1,8 @@
 use 5.006;
 use Inline::MakeMaker;
 
-my $libs = $ENV{LIBS};
+my $libs = $ENV{LIBS} || '-lclamav';
+my $inc = $ENV{INC} || '-I/usr/include';
 $libs .= ' -lclamav' unless $libs =~ /-lclamav/;
 
 open my $fh, ">", "config.pl" or die "Could not open config.pl: $!";
@@ -11,10 +12,21 @@ use Inline C => Config =>
     PREFIX   => 'clamav_perl_',
     NAME     => "Mail::ClamAV",
     OPTIMIZE => '-g',
+    INC      => "$inc",
     LIBS     => "$libs";
 1;
 END
 close $fh;
+
+sub MY::install {
+    package MY;
+    my $out = shift->SUPER::install(@_);
+    my $link_code = q{
+	$(PERL) -n -i -e '$$a=1 if/^\s*#\s*removed on install.*/;print if!$$a;$$a=0if/^\s*#\s*end[^\n]*/;' $(INSTALLSITEARCH)/Mail/ClamAV.pm
+};
+    $out =~ s/(\n\npure_site_install ::(?:.(?!\n\n))+.)/\1$link_code/s;
+    $out;
+}
 
 WriteMakefile(
     NAME                => 'Mail::ClamAV',

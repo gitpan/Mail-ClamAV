@@ -3,5 +3,6 @@ use Inline C => Config =>
     PREFIX   => 'clamav_perl_',
     NAME     => "Mail::ClamAV",
     OPTIMIZE => '-g',
-    LIBS     => " -lclamav";
+    INC      => "-I/usr/include",
+    LIBS     => "-lclamav";
 1;
