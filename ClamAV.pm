@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.15';
+    $VERSION = '0.16';
 }
 
 # guard against memory errors not being reported
@@ -29,6 +29,8 @@ sub CL_MAIL           () { CL_SCAN_MAIL() }
 sub CL_DISABLERAR     () { CL_SCAN_DISABLERAR() }
 sub CL_OLE2           () { CL_SCAN_OLE2() }
 sub CL_ENCRYPTED      () { CL_SCAN_BLOCKENCRYPTED() }
+sub CL_BLOCKENCRYPTED () { CL_SCAN_BLOCKENCRYPTED() }
+sub CL_MAILURL        () { CL_SCAN_MAILURL() }
 sub CL_HTML           () { CL_SCAN_HTML() }
 sub CL_PE             () { CL_SCAN_PE() }
 sub CL_BLOCKBROKEN    () { CL_SCAN_BLOCKBROKEN() }
