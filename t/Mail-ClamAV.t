@@ -14,13 +14,13 @@ my $fail = 0;
 foreach my $constname (qw(
     CL_CLEAN
     CL_VIRUS
+    CL_BREAK
 
     CL_EMAXREC
     CL_EMAXSIZE
     CL_EMAXFILES
     CL_ERAR
     CL_EZIP
-    CL_EMALFZIP
     CL_EGZIP
     CL_EBZIP
     CL_EOLE2
@@ -28,7 +28,6 @@ foreach my $constname (qw(
     CL_EMSCAB
     CL_EACCES
     CL_ENULLARG
-
     CL_ETMPFILE
     CL_EFSYNC
     CL_EMEM
@@ -42,11 +41,16 @@ foreach my $constname (qw(
     CL_EDSIG
     CL_EIO
     CL_EFORMAT
+    CL_ESUPPORT
+    CL_ELOCKDB
+
+    CL_ENCINIT
+    CL_ENCLOAD
+    CL_ENCIO
 
     CL_SCAN_RAW
     CL_SCAN_ARCHIVE
     CL_SCAN_MAIL
-    CL_SCAN_DISABLERAR
     CL_SCAN_OLE2
     CL_SCAN_BLOCKENCRYPTED
     CL_SCAN_HTML
@@ -54,12 +58,18 @@ foreach my $constname (qw(
     CL_SCAN_BLOCKBROKEN
     CL_SCAN_MAILURL
     CL_SCAN_BLOCKMAX
+    CL_SCAN_ALGORITHMIC
+    CL_SCAN_PHISHING_DOMAINLIST
+    CL_SCAN_PHISHING_BLOCKSSL
+
+    CL_SCAN_PHISHING_BLOCKCLOAK
+    CL_SCAN_ELF
+
     CL_SCAN_STDOPT
 
     CL_RAW
     CL_ARCHIVE
     CL_MAIL
-    CL_DISABLERAR
     CL_OLE2
     CL_BLOCKENCRYPTED
     CL_HTML

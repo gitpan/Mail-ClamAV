@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.17';
+    $VERSION = '0.20';
 }
 
 # guard against memory errors not being reported
@@ -26,7 +26,6 @@ our @ISA = qw(Exporter);
 sub CL_RAW            () { CL_SCAN_RAW() }
 sub CL_ARCHIVE        () { CL_SCAN_ARCHIVE() }
 sub CL_MAIL           () { CL_SCAN_MAIL() }
-sub CL_DISABLERAR     () { CL_SCAN_DISABLERAR() }
 sub CL_OLE2           () { CL_SCAN_OLE2() }
 sub CL_ENCRYPTED      () { CL_SCAN_BLOCKENCRYPTED() }
 sub CL_BLOCKENCRYPTED () { CL_SCAN_BLOCKENCRYPTED() }
@@ -44,13 +43,13 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
 
     CL_CLEAN
     CL_VIRUS
+    CL_BREAK
 
     CL_EMAXREC
     CL_EMAXSIZE
     CL_EMAXFILES
     CL_ERAR
     CL_EZIP
-    CL_EMALFZIP
     CL_EGZIP
     CL_EBZIP
     CL_EOLE2
@@ -58,7 +57,6 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_EMSCAB
     CL_EACCES
     CL_ENULLARG
-
     CL_ETMPFILE
     CL_EFSYNC
     CL_EMEM
@@ -72,11 +70,16 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_EDSIG
     CL_EIO
     CL_EFORMAT
+    CL_ESUPPORT
+    CL_ELOCKDB
+
+    CL_ENCINIT
+    CL_ENCLOAD
+    CL_ENCIO
 
     CL_SCAN_RAW
     CL_SCAN_ARCHIVE
     CL_SCAN_MAIL
-    CL_SCAN_DISABLERAR
     CL_SCAN_OLE2
     CL_SCAN_BLOCKENCRYPTED
     CL_SCAN_HTML
@@ -84,12 +87,18 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_SCAN_BLOCKBROKEN
     CL_SCAN_MAILURL
     CL_SCAN_BLOCKMAX
+    CL_SCAN_ALGORITHMIC
+    CL_SCAN_PHISHING_DOMAINLIST
+    CL_SCAN_PHISHING_BLOCKSSL
+
+    CL_SCAN_PHISHING_BLOCKCLOAK
+    CL_SCAN_ELF
+
     CL_SCAN_STDOPT
 
     CL_RAW
     CL_ARCHIVE
     CL_MAIL
-    CL_DISABLERAR
     CL_OLE2
     CL_BLOCKENCRYPTED
     CL_HTML
@@ -156,30 +165,6 @@ sub scan {
     return $status;
 }
 
-sub scanbuff {
-    my $self = shift;
-
-    my $buff = shift;
-    croak "No buffer defined" unless defined $buff;
-
-    croak "Invalid arguments to scanbuff: @_" if @_;
-
-    my $st = _scanbuff($self, $buff);
-    my $status = new Mail::ClamAV::Status;
-    $status->error($st);
-    $status->errno(0+$st);
-    $status->clean($st == CL_CLEAN());
-    $status->virus($st == CL_VIRUS());
-    if ($status) {
-        $status->count(1);
-    }
-    else {
-        $status->count(0);
-    }
-    return $status;
-}
-
-
 use Inline C => Config =>
     VERSION  => $VERSION,
     PREFIX   => 'clamav_perl_',
@@ -204,7 +189,7 @@ use Inline C => <<'END_OF_C';
 static void error(int errcode);
 
 struct clamav_perl {
-    struct cl_node *root;
+    struct cl_engine *root;
     struct cl_limits limits;
     struct cl_stat st;
     char is_dir;
@@ -225,6 +210,7 @@ SV *clamav_perl_new(char *class, char *path)
 
     /* set defaults for limits */
     c->limits.maxreclevel = 5;
+    c->limits.maxmailrec = 10;
     c->limits.maxfiles = 1000;
     c->limits.maxfilesize = 1024 * 1028 * 10; /* 10 Megs */
 
@@ -276,7 +262,19 @@ char *clamav_perl_retdbdir()
 void clamav_perl_buildtrie(SV *self)
 {
     struct clamav_perl *c = SvClam(self);
-    cl_buildtrie(c->root);
+    cl_build(c->root);
+}
+
+int clamav_perl_build(SV *self)
+{
+    struct clamav_perl *c = SvClam(self);
+    int status;
+    status = cl_build(c->root);
+    if (status) {
+        error(status);
+        return 0;
+    }
+    return 1;
 }
 
 int clamav_perl_maxreclevel(SV *self, ...)
@@ -290,6 +288,19 @@ int clamav_perl_maxreclevel(SV *self, ...)
         SvClam(self)->limits.maxreclevel = SvIV(max);
     }
     return SvClam(self)->limits.maxreclevel;
+}
+
+int clamav_perl_maxmailrec(SV *self, ...)
+{
+    Inline_Stack_Vars;
+    if (Inline_Stack_Items > 1) {
+        SV *max;
+        if (Inline_Stack_Items > 2)
+            croak("Invalid number of arguments to maxmailrec()");
+        max = Inline_Stack_Item(1);
+        SvClam(self)->limits.maxmailrec = SvIV(max);
+    }
+    return SvClam(self)->limits.maxmailrec;
 }
 
 int clamav_perl_maxfiles(SV *self, ...)
@@ -344,44 +355,10 @@ int clamav_perl_archivememlim(SV *self, ...)
     return SvClam(self)->limits.archivememlim;
 }
 
-void clamav_perl__scanbuff(SV *self, SV *buff)
-{
-    struct clamav_perl *c = SvClam(self);
-    STRLEN len;
-    int status;
-    char *b;
-    const char *msg;
-    SV *smsg;
-    Inline_Stack_Vars;
-
-    Inline_Stack_Reset;
-
-    if (SvTAINTED(buff))
-        croak("buff argument specified to scanbuff() is tainted");
-
-    b = SvPV(buff, len);
-    status = cl_scanbuff(b, len, &msg, c->root);
-
-    smsg = sv_newmortal();
-    sv_setiv(smsg, (IV)status);
-
-    /* msg is some random memory if no virus was found */
-    if (status == CL_VIRUS)
-        sv_setpv(smsg, msg);
-    else if (status == CL_CLEAN)
-        sv_setpv(smsg, "Clean");
-    else
-        sv_setpv(smsg, cl_perror(status));
-
-    SvIOK_on(smsg);
-    Inline_Stack_Push(smsg);
-    Inline_Stack_Done;
-}
-
 void DESTROY(SV *self)
 {
     struct clamav_perl *c = SvClam(self);
-    cl_freetrie(c->root);
+    cl_free(c->root);
     if (c->is_dir == 1)
         cl_statfree(&c->st);
     Safefree(c->path);
@@ -415,7 +392,7 @@ void clamav_perl__scanfd(SV *self, int fd, int options)
     else if (status == CL_CLEAN)
         sv_setpv(smsg, "Clean");
     else
-        sv_setpv(smsg, cl_perror(status));
+        sv_setpv(smsg, cl_strerror(status));
 
     SvIOK_on(smsg);
     Inline_Stack_Push(smsg);
@@ -456,7 +433,7 @@ void clamav_perl__scanfile(SV *self, SV *path, int options)
     else if (status == CL_CLEAN)
         sv_setpv(smsg, "Clean");
     else
-        sv_setpv(smsg, cl_perror(status));
+        sv_setpv(smsg, cl_strerror(status));
 
     SvIOK_on(smsg);
     Inline_Stack_Push(smsg);
@@ -479,7 +456,7 @@ static void error(int errcode)
     SV *err = get_sv("Mail::ClamAV::Error", TRUE);
 
     sv_setiv(err, (IV)errcode);
-    e = cl_perror(errcode);
+    e = cl_strerror(errcode);
     sv_setpv(err, e);
     SvIOK_on(err);
 }
@@ -488,13 +465,14 @@ int clamav_perl_constant(char *name)
 {
     if (strEQ("CL_CLEAN", name)) return CL_CLEAN;
     if (strEQ("CL_VIRUS", name)) return CL_VIRUS;
+    if (strEQ("CL_SUCCESS", name)) return CL_SUCCESS;
+    if (strEQ("CL_BREAK", name)) return CL_BREAK;
 
     if (strEQ("CL_EMAXREC", name)) return CL_EMAXREC;
     if (strEQ("CL_EMAXSIZE", name)) return CL_EMAXSIZE;
     if (strEQ("CL_EMAXFILES", name)) return CL_EMAXFILES;
     if (strEQ("CL_ERAR", name)) return CL_ERAR;
     if (strEQ("CL_EZIP", name)) return CL_EZIP;
-    if (strEQ("CL_EMALFZIP", name)) return CL_EMALFZIP;
     if (strEQ("CL_EGZIP", name)) return CL_EGZIP;
     if (strEQ("CL_EBZIP", name)) return CL_EBZIP;
     if (strEQ("CL_EOLE2", name)) return CL_EOLE2;
@@ -502,7 +480,6 @@ int clamav_perl_constant(char *name)
     if (strEQ("CL_EMSCAB", name)) return CL_EMSCAB;
     if (strEQ("CL_EACCES", name)) return CL_EACCES;
     if (strEQ("CL_ENULLARG", name)) return CL_ENULLARG;
-
     if (strEQ("CL_ETMPFILE", name)) return CL_ETMPFILE;
     if (strEQ("CL_EFSYNC", name)) return CL_EFSYNC;
     if (strEQ("CL_EMEM", name)) return CL_EMEM;
@@ -516,11 +493,27 @@ int clamav_perl_constant(char *name)
     if (strEQ("CL_EDSIG", name)) return CL_EDSIG;
     if (strEQ("CL_EIO", name)) return CL_EIO;
     if (strEQ("CL_EFORMAT", name)) return CL_EFORMAT;
+    if (strEQ("CL_ESUPPORT", name)) return CL_ESUPPORT;
+    if (strEQ("CL_ELOCKDB", name)) return CL_ELOCKDB;
 
+    /* NodalCore */
+    if (strEQ("CL_ENCINIT", name)) return CL_ENCINIT;
+    if (strEQ("CL_ENCLOAD", name)) return CL_ENCLOAD;
+    if (strEQ("CL_ENCIO", name)) return CL_ENCIO;
+
+    /* db options */
+    if (strEQ("CL_DB_NCORE", name)) return CL_DB_NCORE;
+    if (strEQ("CL_DB_PHISHING", name)) return CL_DB_PHISHING;
+    if (strEQ("CL_DB_ACONLY", name)) return CL_DB_ACONLY;
+    if (strEQ("CL_DB_PHISHING_URLS", name)) return CL_DB_PHISHING_URLS;
+
+    /* recommended db settings */
+    if (strEQ("CL_DB_STDOPT", name)) return CL_DB_STDOPT;
+
+    /* scan options */
     if (strEQ("CL_SCAN_RAW", name)) return CL_SCAN_RAW;
     if (strEQ("CL_SCAN_ARCHIVE", name)) return CL_SCAN_ARCHIVE;
     if (strEQ("CL_SCAN_MAIL", name)) return CL_SCAN_MAIL;
-    if (strEQ("CL_SCAN_DISABLERAR", name)) return CL_SCAN_DISABLERAR;
     if (strEQ("CL_SCAN_OLE2", name)) return CL_SCAN_OLE2;
     if (strEQ("CL_SCAN_BLOCKENCRYPTED", name)) return CL_SCAN_BLOCKENCRYPTED;
     if (strEQ("CL_SCAN_HTML", name)) return CL_SCAN_HTML;
@@ -528,8 +521,20 @@ int clamav_perl_constant(char *name)
     if (strEQ("CL_SCAN_BLOCKBROKEN", name)) return CL_SCAN_BLOCKBROKEN;
     if (strEQ("CL_SCAN_MAILURL", name)) return CL_SCAN_MAILURL;
     if (strEQ("CL_SCAN_BLOCKMAX", name)) return CL_SCAN_BLOCKMAX;
+    if (strEQ("CL_SCAN_ALGORITHMIC", name)) return CL_SCAN_ALGORITHMIC;
+    if (strEQ("CL_SCAN_PHISHING_DOMAINLIST", name)) return CL_SCAN_PHISHING_DOMAINLIST;
+    if (strEQ("CL_SCAN_PHISHING_BLOCKSSL", name)) return CL_SCAN_PHISHING_BLOCKSSL;
+    if (strEQ("CL_SCAN_PHISHING_BLOCKCLOAK", name)) return CL_SCAN_PHISHING_BLOCKCLOAK;
+    if (strEQ("CL_SCAN_ELF", name)) return CL_SCAN_ELF;
 
     if (strEQ("CL_SCAN_STDOPT", name)) return CL_SCAN_STDOPT;
+
+    /* aliases for backward compatibility */
+    if (strEQ("CL_RAW", name)) return CL_RAW;
+    if (strEQ("CL_ARCHIVE", name)) return CL_ARCHIVE;
+    if (strEQ("CL_MAIL", name)) return CL_MAIL;
+    if (strEQ("CL_OLE2", name)) return CL_OLE2;
+    if (strEQ("CL_ENCRYPTED", name)) return CL_ENCRYPTED;
 
     croak("Invalid function %s", name);
 }
@@ -587,17 +592,17 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
         or die "Failed to load db: $Mail::ClamAV::Error";
 
     # When database is loaded, you must create the proper trie with:
-    $c->buildtrie;
+    $c->build or die "Failed to build engine: $Mail::ClamAV::Error";
 
     # check to see if we need to reload
     if ($c->statchkdir) {
         $c = new Mail::ClamAV(retdbdir());
-        $c->buildtrie;
+        $c->build or die "Failed to build engine: $Mail::ClamAV::Error";
     }
 
     # Set some limits (only applies to scan())
-    # Only relevant for archives
     $c->maxreclevel(4);
+    $c->maxmailrec(4);
     $c->maxfiles(20);
     $c->maxfilesize(1024 * 1024 * 20); # 20 megs
     $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
@@ -636,57 +641,77 @@ Options for scanning.
 
 =over 1
 
+
 =item CL_SCAN_STDOPT
 
 This is an alias for a recommended set of scan options. You should use it to
-make your software ready for new features in future versions of libclamav.
+make your software ready for new features in the future versions of libclamav. 
 
 =item CL_SCAN_RAW
 
-It does nothing. Please use it (alone) if you don't want to scan any special
-files.
+Use it alone if you want to disable support for special files. 
 
 =item CL_SCAN_ARCHIVE
 
-This flag enables transparent scanning of various archive formats.
+This flag enables transparent scanning of various archive formats. 
 
 =item CL_SCAN_BLOCKENCRYPTED
 
-With this flag the library marks encrypted archives as viruses (Encrypted.Zip,
-Encrypted.RAR).
+With this flag the library will mark encrypted archives as viruses
+(Encrypted.Zip, Encrypted.RAR). 
 
 =item CL_SCAN_BLOCKMAX
 
 Mark archives as viruses if maxfiles, maxfilesize, or maxreclevel limit is
-reached.
+reached. 
 
 =item CL_SCAN_MAIL
 
-It enables support for mail files.
+Enable support for mail files. 
 
 =item CL_SCAN_MAILURL
 
 The mail scanner will download and scan URLs listed in a mail body. This flag
 should not be used on loaded servers. Due to potential problems please do not
-enable it by default but make it optional.
+enable it by default but make it optional. 
 
 =item CL_SCAN_OLE2
 
-Enables support for Microsoft Office document files.
+Enables support for OLE2 containers (used by MS Office and .msi files). 
 
 =item CL_SCAN_PE
 
-This flag enables scanning withing Portable Executable files and allows
-libclamav to unpack UPX, Petite, and FSG compressed executables.
+This flag enables deep scanning of Portable Executable files and allows
+libclamav to unpack executables compressed with run-time unpackers. 
+
+=item CL_SCAN_ELF
+
+Enable support for ELF files. 
 
 =item CL_SCAN_BLOCKBROKEN
 
 libclamav will try to detect broken executables and mark them as
-Broken.Executable.
+Broken.Executable. 
 
 =item CL_SCAN_HTML
 
-This flag enables HTML normalisation (including JScript decryption).
+This flag enables HTML normalisation (including ScrEnc decryption). 
+
+=item CL_SCAN_ALGORITHMIC
+
+Enable algorithmic detection of viruses. 
+
+=item CL_SCAN_PHISHING_DOMAINLIST
+
+Phishing module: restrict URL scanning to domains from .pdf (RECOMMENDED). 
+
+=item CL_SCAN_PHISHING_BLOCKSSL
+
+Phishing module: always block SSL mismatches in URLs. 
+
+=item CL_SCAN_PHISHING_BLOCKCLOAK
+
+Phishing module: always block cloaked URLs. 
 
 =back
 
@@ -718,55 +743,123 @@ Error statuses
 
 =item CL_EMAXREC
 
-recursion level limit exceeded
+recursion limit exceeded 
 
 =item CL_EMAXSIZE
 
-size limit exceeded
+size limit exceeded 
 
 =item CL_EMAXFILES
 
-files limit exceeded
+files limit exceeded 
 
 =item CL_ERAR
 
-rar handler error
+rar handler error 
 
 =item CL_EZIP
 
-zip handler error
-
-=item CL_EMALFZIP
-
-malformed zip
+zip handler error 
 
 =item CL_EGZIP
 
-gzip handler error
+gzip handler error 
 
 =item CL_EBZIP
 
-bzip2 handler error
+bzip2 handler error 
 
 =item CL_EOLE2
 
-OLE2 handler error
+OLE2 handler error 
 
 =item CL_EMSCOMP
 
-compress.exe handler error
+MS Expand handler error 
 
-=item CL_EMSCAB 
+=item CL_EMSCAB
 
-MS CAB module error
+MS CAB module error 
 
 =item CL_EACCES
 
-access denied
+access denied 
 
 =item CL_ENULLARG
 
-null argument error
+null argument 
+
+=item CL_ETMPFILE
+
+tmpfile() failed 
+
+=item CL_EFSYNC
+
+fsync() failed 
+
+=item CL_EMEM
+
+memory allocation error 
+
+=item CL_EOPEN
+
+file open error 
+
+=item CL_EMALFDB
+
+malformed database 
+
+=item CL_EPATSHORT
+
+pattern too short 
+
+=item CL_ETMPDIR
+
+mkdir() failed 
+
+=item CL_ECVD
+
+not a CVD file (or broken) 
+
+=item CL_ECVDEXTR
+
+CVD extraction failure 
+
+=item CL_EMD5
+
+MD5 verification error 
+
+=item CL_EDSIG
+
+digital signature verification error 
+
+=item CL_EIO
+
+general I/O error 
+
+=item CL_EFORMAT
+
+bad format or broken file 
+
+=item CL_ESUPPORT
+
+not supported data format 
+
+=item CL_ELOCKDB
+
+can't lock DB directory 
+
+=item CL_ENCINIT
+
+NodalCore initialization failed 
+
+=item CL_ENCLOAD
+
+error loading NodalCore database 
+
+=item CL_ENCIO
+
+general NodalCore I/O error 
 
 =back
 
@@ -795,7 +888,11 @@ These settings only apply to C<scan()> and archives (CL_SCAN_ARCHIVE).
 
 =item maxreclevel
 
-Sets the maximum recursion level [default 5].
+Sets the maximum recursion level into archives [default 5].
+
+=item maxmailrec
+
+Sets the maximum recursion level into emails [default 10].
 
 =item maxfiles
 
@@ -870,16 +967,8 @@ C<scan()>, it will C<croak()>.
 
 =item scanbuff($buff)
 
-scanbuff takes a raw buffer and scans it. No options are available for this
-function (it is assumed you already unarchived or de-MIMEed the buffer and that
-it is raw).
-
-NOTE: This method will go away in libclamav 0.90. Quote from the mailing list:
-
-    Please do not use cl_scanbuff at all, it's to be removed in 0.90. This
-    function only supports old type signature scanning and will miss many
-    viruses (just try to scan test/clam.exe). You should definitely use
-    cl_scanfile/cl_scandesc instead.
+This function was taken out of ClamAV in 0.90 and was thus taken out of
+Mail::ClamAV.
 
 =back
 

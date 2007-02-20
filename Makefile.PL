@@ -11,6 +11,11 @@ if ($?) {
 else {
     chomp $inc;
 }
+my $version = `clamav-config --version`;
+chomp $version;
+if ($version < 0.90) {
+    die "The clamav version you are using is too old. Please upgrade to atleast 0.90\n";
+}
 
 my $libs = `clamav-config --libs`;
 if ($?) {

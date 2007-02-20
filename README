@@ -16,17 +16,18 @@ SYNOPSIS
             or die "Failed to load db: $Mail::ClamAV::Error";
 
         # When database is loaded, you must create the proper trie with:
-        $c->buildtrie;
+        $c->build or die "Failed to build engine: $Mail::ClamAV::Error";
 
         # check to see if we need to reload
         if ($c->statchkdir) {
             $c = new Mail::ClamAV(retdbdir());
-            $c->buildtrie;
+            $c->build or die "Failed to build engine: $Mail::ClamAV::Error";
         }
 
         # Set some limits (only applies to scan())
         # Only relevant for archives
         $c->maxreclevel(4);
+        $c->maxmailrec(4);
         $c->maxfiles(20);
         $c->maxfilesize(1024 * 1024 * 20); # 20 megs
         $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
@@ -61,18 +62,17 @@ DESCRIPTION
 
     CL_SCAN_STDOPT
      This is an alias for a recommended set of scan options. You should use
-     it to make your software ready for new features in future versions of
-     libclamav.
+     it to make your software ready for new features in the future versions
+     of libclamav.
 
     CL_SCAN_RAW
-     It does nothing. Please use it (alone) if you don't want to scan any
-     special files.
+     Use it alone if you want to disable support for special files.
 
     CL_SCAN_ARCHIVE
      This flag enables transparent scanning of various archive formats.
 
     CL_SCAN_BLOCKENCRYPTED
-     With this flag the library marks encrypted archives as viruses
+     With this flag the library will mark encrypted archives as viruses
      (Encrypted.Zip, Encrypted.RAR).
 
     CL_SCAN_BLOCKMAX
@@ -80,7 +80,7 @@ DESCRIPTION
      is reached.
 
     CL_SCAN_MAIL
-     It enables support for mail files.
+     Enable support for mail files.
 
     CL_SCAN_MAILURL
      The mail scanner will download and scan URLs listed in a mail body.
@@ -88,18 +88,34 @@ DESCRIPTION
      problems please do not enable it by default but make it optional.
 
     CL_SCAN_OLE2
-     Enables support for Microsoft Office document files.
+     Enables support for OLE2 containers (used by MS Office and .msi files).
 
     CL_SCAN_PE
-     This flag enables scanning withing Portable Executable files and allows
-     libclamav to unpack UPX, Petite, and FSG compressed executables.
+     This flag enables deep scanning of Portable Executable files and allows
+     libclamav to unpack executables compressed with run-time unpackers.
+
+    CL_SCAN_ELF
+     Enable support for ELF files.
 
     CL_SCAN_BLOCKBROKEN
      libclamav will try to detect broken executables and mark them as
      Broken.Executable.
 
     CL_SCAN_HTML
-     This flag enables HTML normalisation (including JScript decryption).
+     This flag enables HTML normalisation (including ScrEnc decryption).
+
+    CL_SCAN_ALGORITHMIC
+     Enable algorithmic detection of viruses.
+
+    CL_SCAN_PHISHING_DOMAINLIST
+     Phishing module: restrict URL scanning to domains from .pdf
+     (RECOMMENDED).
+
+    CL_SCAN_PHISHING_BLOCKSSL
+     Phishing module: always block SSL mismatches in URLs.
+
+    CL_SCAN_PHISHING_BLOCKCLOAK
+     Phishing module: always block cloaked URLs.
 
     Status returns. You can get the status code by putting the status object
     returned into into numeric context.
@@ -118,7 +134,7 @@ DESCRIPTION
     Error statuses
 
     CL_EMAXREC
-     recursion level limit exceeded
+     recursion limit exceeded
 
     CL_EMAXSIZE
      size limit exceeded
@@ -132,9 +148,6 @@ DESCRIPTION
     CL_EZIP
      zip handler error
 
-    CL_EMALFZIP
-     malformed zip
-
     CL_EGZIP
      gzip handler error
 
@@ -145,7 +158,7 @@ DESCRIPTION
      OLE2 handler error
 
     CL_EMSCOMP
-     compress.exe handler error
+     MS Expand handler error
 
     CL_EMSCAB
      MS CAB module error
@@ -154,7 +167,61 @@ DESCRIPTION
      access denied
 
     CL_ENULLARG
-     null argument error
+     null argument
+
+    CL_ETMPFILE
+     tmpfile() failed
+
+    CL_EFSYNC
+     fsync() failed
+
+    CL_EMEM
+     memory allocation error
+
+    CL_EOPEN
+     file open error
+
+    CL_EMALFDB
+     malformed database
+
+    CL_EPATSHORT
+     pattern too short
+
+    CL_ETMPDIR
+     mkdir() failed
+
+    CL_ECVD
+     not a CVD file (or broken)
+
+    CL_ECVDEXTR
+     CVD extraction failure
+
+    CL_EMD5
+     MD5 verification error
+
+    CL_EDSIG
+     digital signature verification error
+
+    CL_EIO
+     general I/O error
+
+    CL_EFORMAT
+     bad format or broken file
+
+    CL_ESUPPORT
+     not supported data format
+
+    CL_ELOCKDB
+     can't lock DB directory
+
+    CL_ENCINIT
+     NodalCore initialization failed
+
+    CL_ENCLOAD
+     error loading NodalCore database
+
+    CL_ENCIO
+     general NodalCore I/O error
 
   Exportable functions
     These function can be exported either individually or using the :all
@@ -170,7 +237,10 @@ METHODS
     (CL_SCAN_ARCHIVE).
 
     maxreclevel
-     Sets the maximum recursion level [default 5].
+     Sets the maximum recursion level into archives [default 5].
+
+    maxmailrec
+     Sets the maximum recursion level into emails [default 10].
 
     maxfiles
      Maximum number of files that will be scanned [default 1000]. A value of
@@ -226,17 +296,8 @@ METHODS
      passed to "scan()", it will "croak()".
 
     scanbuff($buff)
-     scanbuff takes a raw buffer and scans it. No options are available for
-     this function (it is assumed you already unarchived or de-MIMEed the
-     buffer and that it is raw).
-
-     NOTE: This method will go away in libclamav 0.90. Quote from the
-     mailing list:
-
-         Please do not use cl_scanbuff at all, it's to be removed in 0.90. This
-         function only supports old type signature scanning and will miss many
-         viruses (just try to scan test/clam.exe). You should definitely use
-         cl_scanfile/cl_scandesc instead.
+     This function was taken out of ClamAV in 0.90 and was thus taken out of
+     Mail::ClamAV.
 
   Data Directory stats
     If the path passed into "new()" is a directory Mail::ClamAV will set
