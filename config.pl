@@ -3,5 +3,5 @@ use Inline C => Config =>
     PREFIX   => 'clamav_perl_',
     NAME     => "Mail::ClamAV",
     INC      => "-I/usr/include",
-    LIBS     => "-L/usr/lib -lz -lbz2 -L/usr/lib -lcurl -lssl -lcrypto -ldl -lz -lssl -lcrypto -ldl -lclamav";
+    LIBS     => "-L/usr/lib -lz -lbz2 -lgmp -lclamav";
 1;

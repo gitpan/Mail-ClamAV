@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.20';
+    $VERSION = '0.21';
 }
 
 # guard against memory errors not being reported
@@ -183,6 +183,20 @@ use Inline C => <<'END_OF_C';
 #include <sys/stat.h>
 #include <unistd.h>
 #include <clamav.h>
+
+
+#ifndef CL_ENCINIT
+#define CL_ENCINIT 0
+#endif
+#ifndef CL_ENCLOAD
+#define CL_ENCLOAD 0
+#endif
+#ifndef CL_ENCIO
+#define CL_ENCIO 0
+#endif
+#ifndef CL_DB_NCORE
+#define CL_DB_NCORE 0
+#endif
 
 #define SvClam(MEM) ((struct clamav_perl *)SvIV(SvRV(MEM)))
 
