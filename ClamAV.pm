@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.21';
+    $VERSION = '0.22';
 }
 
 # guard against memory errors not being reported
@@ -88,7 +88,6 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_SCAN_MAILURL
     CL_SCAN_BLOCKMAX
     CL_SCAN_ALGORITHMIC
-    CL_SCAN_PHISHING_DOMAINLIST
     CL_SCAN_PHISHING_BLOCKSSL
 
     CL_SCAN_PHISHING_BLOCKCLOAK
@@ -224,12 +223,10 @@ SV *clamav_perl_new(char *class, char *path)
 
     /* set defaults for limits */
     c->limits.maxreclevel = 5;
-    c->limits.maxmailrec = 10;
     c->limits.maxfiles = 1000;
     c->limits.maxfilesize = 1024 * 1028 * 10; /* 10 Megs */
 
     /* XXX need to figure out a nice default */
-    c->limits.maxratio = 200;
     c->limits.archivememlim = 1;
 
     if (S_ISDIR(st.st_mode)) {
@@ -306,15 +303,8 @@ int clamav_perl_maxreclevel(SV *self, ...)
 
 int clamav_perl_maxmailrec(SV *self, ...)
 {
-    Inline_Stack_Vars;
-    if (Inline_Stack_Items > 1) {
-        SV *max;
-        if (Inline_Stack_Items > 2)
-            croak("Invalid number of arguments to maxmailrec()");
-        max = Inline_Stack_Item(1);
-        SvClam(self)->limits.maxmailrec = SvIV(max);
-    }
-    return SvClam(self)->limits.maxmailrec;
+    warn("maxmailrec is not longer supported in clamav");
+    return 0;
 }
 
 int clamav_perl_maxfiles(SV *self, ...)
@@ -345,15 +335,8 @@ int clamav_perl_maxfilesize(SV *self, ...)
 
 int clamav_perl_maxratio(SV *self, ...)
 {
-    Inline_Stack_Vars;
-    if (Inline_Stack_Items > 1) {
-        SV *max;
-        if (Inline_Stack_Items > 2)
-            croak("Invalid number of arguments to maxratio()");
-        max = Inline_Stack_Item(1);
-        SvClam(self)->limits.maxratio = (long int)SvIV(max);
-    }
-    return SvClam(self)->limits.maxratio;
+    warn("maxratio is not longer supported in clamav");
+    return 0;
 }
 
 int clamav_perl_archivememlim(SV *self, ...)
@@ -536,7 +519,6 @@ int clamav_perl_constant(char *name)
     if (strEQ("CL_SCAN_MAILURL", name)) return CL_SCAN_MAILURL;
     if (strEQ("CL_SCAN_BLOCKMAX", name)) return CL_SCAN_BLOCKMAX;
     if (strEQ("CL_SCAN_ALGORITHMIC", name)) return CL_SCAN_ALGORITHMIC;
-    if (strEQ("CL_SCAN_PHISHING_DOMAINLIST", name)) return CL_SCAN_PHISHING_DOMAINLIST;
     if (strEQ("CL_SCAN_PHISHING_BLOCKSSL", name)) return CL_SCAN_PHISHING_BLOCKSSL;
     if (strEQ("CL_SCAN_PHISHING_BLOCKCLOAK", name)) return CL_SCAN_PHISHING_BLOCKCLOAK;
     if (strEQ("CL_SCAN_ELF", name)) return CL_SCAN_ELF;
@@ -616,11 +598,9 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
 
     # Set some limits (only applies to scan())
     $c->maxreclevel(4);
-    $c->maxmailrec(4);
     $c->maxfiles(20);
     $c->maxfilesize(1024 * 1024 * 20); # 20 megs
     $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
-    $c->maxratio(0);
 
     # Scan a filehandle (scandesc in clamav)
     # scan(FileHandle or path, Bitfield of options)
@@ -717,7 +697,8 @@ Enable algorithmic detection of viruses.
 
 =item CL_SCAN_PHISHING_DOMAINLIST
 
-Phishing module: restrict URL scanning to domains from .pdf (RECOMMENDED). 
+With a minor version bump clamav development team removed this and broke backwards compatibility,
+so it is no longer supported in this module as of 0.22.
 
 =item CL_SCAN_PHISHING_BLOCKSSL
 
@@ -906,7 +887,8 @@ Sets the maximum recursion level into archives [default 5].
 
 =item maxmailrec
 
-Sets the maximum recursion level into emails [default 10].
+With a minor version bump clamav development team removed this and broke backwards compatibility,
+so it is no longer supported in this module as of 0.22.
 
 =item maxfiles
 
@@ -920,9 +902,8 @@ disables the check.
 
 =item maxratio
 
-Maximum compression ratio. So if this is set to 200, libclamav will give up
-decompressing a file if it reaches 200x its compressed size [default 200]. A
-value of zero disables the check.
+With a minor version bump clamav development team removed this and broke backwards compatibility,
+so it is no longer supported in this module as of 0.22.
 
 =item archivememlim
 

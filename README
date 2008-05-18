@@ -25,13 +25,10 @@ SYNOPSIS
         }
 
         # Set some limits (only applies to scan())
-        # Only relevant for archives
         $c->maxreclevel(4);
-        $c->maxmailrec(4);
         $c->maxfiles(20);
         $c->maxfilesize(1024 * 1024 * 20); # 20 megs
         $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
-        $c->maxratio(0);
 
         # Scan a filehandle (scandesc in clamav)
         # scan(FileHandle or path, Bitfield of options)
@@ -108,8 +105,9 @@ DESCRIPTION
      Enable algorithmic detection of viruses.
 
     CL_SCAN_PHISHING_DOMAINLIST
-     Phishing module: restrict URL scanning to domains from .pdf
-     (RECOMMENDED).
+     With a minor version bump clamav development team removed this and
+     broke backwards compatibility, so it is no longer supported in this
+     module as of 0.22.
 
     CL_SCAN_PHISHING_BLOCKSSL
      Phishing module: always block SSL mismatches in URLs.
@@ -240,7 +238,9 @@ METHODS
      Sets the maximum recursion level into archives [default 5].
 
     maxmailrec
-     Sets the maximum recursion level into emails [default 10].
+     With a minor version bump clamav development team removed this and
+     broke backwards compatibility, so it is no longer supported in this
+     module as of 0.22.
 
     maxfiles
      Maximum number of files that will be scanned [default 1000]. A value of
@@ -251,9 +251,9 @@ METHODS
      of zero disables the check.
 
     maxratio
-     Maximum compression ratio. So if this is set to 200, libclamav will
-     give up decompressing a file if it reaches 200x its compressed size
-     [default 200]. A value of zero disables the check.
+     With a minor version bump clamav development team removed this and
+     broke backwards compatibility, so it is no longer supported in this
+     module as of 0.22.
 
     archivememlim
      Turns on/off memory usage limits for bzip2. [default 1]

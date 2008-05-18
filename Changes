@@ -1,5 +1,9 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.22  Sun May 18 09:10:19 EDT 2008
+  - removed constant CL_SCAN_PHISHING_DOMAINLIST
+  - removed support for maxratio and maxmailrec
+
 0.21  Mon Jan 14 14:39:43 MST 2008
   - updated to work with missing defines in new libclamav-0.92
 
