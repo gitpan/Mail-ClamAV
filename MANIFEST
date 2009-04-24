@@ -1,10 +1,10 @@
 Changes
 ClamAV.pm
-config.pl
 Inline/MakeMaker.pm
 INSTALL
 Makefile.PL
 MANIFEST
+MANIFEST.SKIP
 META.yml
 README
 t/eicarcom2.zip

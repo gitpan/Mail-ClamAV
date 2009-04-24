@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.22';
+    $VERSION = '0.24';
 }
 
 # guard against memory errors not being reported
@@ -38,7 +38,7 @@ sub CL_BLOCKMAX       () { CL_SCAN_BLOCKMAX() }
 # This allows declaration   use Mail::ClamAV ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
-our %EXPORT_TAGS = ( 'all' => [ qw(
+our %EXPORT_TAGS = ( all => [ qw(
     retdbdir
 
     CL_CLEAN
@@ -48,30 +48,15 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
     CL_EMAXREC
     CL_EMAXSIZE
     CL_EMAXFILES
-    CL_ERAR
-    CL_EZIP
-    CL_EGZIP
-    CL_EBZIP
-    CL_EOLE2
-    CL_EMSCOMP
-    CL_EMSCAB
     CL_EACCES
     CL_ENULLARG
     CL_ETMPFILE
-    CL_EFSYNC
     CL_EMEM
     CL_EOPEN
     CL_EMALFDB
-    CL_EPATSHORT
     CL_ETMPDIR
     CL_ECVD
-    CL_ECVDEXTR
-    CL_EMD5
-    CL_EDSIG
-    CL_EIO
     CL_EFORMAT
-    CL_ESUPPORT
-    CL_ELOCKDB
 
     CL_ENCINIT
     CL_ENCLOAD
@@ -203,7 +188,6 @@ static void error(int errcode);
 
 struct clamav_perl {
     struct cl_engine *root;
-    struct cl_limits limits;
     struct cl_stat st;
     char is_dir;
     char *path;
@@ -221,24 +205,21 @@ SV *clamav_perl_new(char *class, char *path)
     if (stat(path, &st) != 0)
         croak("%s does not exist: %s\n", path, strerror(errno));
 
-    /* set defaults for limits */
-    c->limits.maxreclevel = 5;
-    c->limits.maxfiles = 1000;
-    c->limits.maxfilesize = 1024 * 1028 * 10; /* 10 Megs */
-
-    /* XXX need to figure out a nice default */
-    c->limits.archivememlim = 1;
-
-    if (S_ISDIR(st.st_mode)) {
-        c->is_dir = 1;
-        memset(&c->st, 0, sizeof(struct cl_stat));
-        status = cl_statinidir(path, &c->st);
-        c->path = strdup(path);
-        if (status == 0)
-            status = cl_loaddbdir(path, &c->root, &c->signatures);
+    if ((status = cl_init(CL_INIT_DEFAULT)) != CL_SUCCESS) {
+        error(status);
+        return &PL_sv_undef;
     }
-    else
-        status = cl_loaddb(path, &c->root, &c->signatures);
+    if (!(c->root = cl_engine_new())) {
+        error(status);
+        return &PL_sv_undef;
+    }
+
+    /* set defaults for limits */
+    cl_engine_set_num(c->root, CL_ENGINE_MAX_RECURSION, 5);
+    cl_engine_set_num(c->root, CL_ENGINE_MAX_FILES, 1000);
+    cl_engine_set_num(c->root, CL_ENGINE_MAX_FILESIZE, 1024 * 1028 * 10); /* 10 Megs */
+
+    status = cl_load(path, c->root, &c->signatures, CL_DB_STDOPT);
 
     if (status != 0) {
         error(status);
@@ -273,15 +254,16 @@ char *clamav_perl_retdbdir()
 void clamav_perl_buildtrie(SV *self)
 {
     struct clamav_perl *c = SvClam(self);
-    cl_build(c->root);
+    cl_engine_compile(c->root);
 }
 
 int clamav_perl_build(SV *self)
 {
     struct clamav_perl *c = SvClam(self);
     int status;
-    status = cl_build(c->root);
-    if (status) {
+    status = cl_engine_compile(c->root);
+    if (status != CL_SUCCESS) {
+        cl_engine_free(c->root);
         error(status);
         return 0;
     }
@@ -291,14 +273,22 @@ int clamav_perl_build(SV *self)
 int clamav_perl_maxreclevel(SV *self, ...)
 {
     Inline_Stack_Vars;
+    struct clamav_perl *c = SvClam(self);
+    int err = 0;
+    long long reclevel = 0;
     if (Inline_Stack_Items > 1) {
         SV *max;
         if (Inline_Stack_Items > 2)
             croak("Invalid number of arguments to maxreclevel()");
         max = Inline_Stack_Item(1);
-        SvClam(self)->limits.maxreclevel = SvIV(max);
+        cl_engine_set_num(c->root, CL_ENGINE_MAX_RECURSION, SvIV(max));
     }
-    return SvClam(self)->limits.maxreclevel;
+    reclevel = cl_engine_get_num(c->root, CL_ENGINE_MAX_RECURSION, &err);
+    if (err != CL_SUCCESS) {
+        error(err);
+        return;
+    }
+    return reclevel;
 }
 
 int clamav_perl_maxmailrec(SV *self, ...)
@@ -310,27 +300,43 @@ int clamav_perl_maxmailrec(SV *self, ...)
 int clamav_perl_maxfiles(SV *self, ...)
 {
     Inline_Stack_Vars;
+    struct clamav_perl *c = SvClam(self);
+    int err = 0;
+    long long maxfiles = 0;
     if (Inline_Stack_Items > 1) {
         SV *max;
         if (Inline_Stack_Items > 2)
             croak("Invalid number of arguments to maxfiles()");
         max = Inline_Stack_Item(1);
-        SvClam(self)->limits.maxfiles = SvIV(max);
+        cl_engine_set_num(c->root, CL_ENGINE_MAX_FILES, SvIV(max));
     }
-    return SvClam(self)->limits.maxfiles;
+    maxfiles = cl_engine_get_num(c->root, CL_ENGINE_MAX_FILES, &err);
+    if (err != CL_SUCCESS) {
+        error(err);
+        return;
+    }
+    return maxfiles;
 }
 
 int clamav_perl_maxfilesize(SV *self, ...)
 {
     Inline_Stack_Vars;
+    struct clamav_perl *c = SvClam(self);
+    int err = 0;
+    long long maxfsize;
     if (Inline_Stack_Items > 1) {
         SV *max;
         if (Inline_Stack_Items > 2)
             croak("Invalid number of arguments to maxfilesize()");
         max = Inline_Stack_Item(1);
-        SvClam(self)->limits.maxfilesize = SvIV(max);
+        cl_engine_set_num(c->root, CL_ENGINE_MAX_FILESIZE, SvIV(max));
     }
-    return SvClam(self)->limits.maxfilesize;
+    maxfsize = cl_engine_get_num(c->root, CL_ENGINE_MAX_FILESIZE, &err);
+    if (err != CL_SUCCESS) {
+        error(err);
+        return;
+    }
+    return maxfsize;
 }
 
 int clamav_perl_maxratio(SV *self, ...)
@@ -341,21 +347,14 @@ int clamav_perl_maxratio(SV *self, ...)
 
 int clamav_perl_archivememlim(SV *self, ...)
 {
-    Inline_Stack_Vars;
-    if (Inline_Stack_Items > 1) {
-        SV *max;
-        if (Inline_Stack_Items > 2)
-            croak("Invalid number of arguments to archivememlim()");
-        max = Inline_Stack_Item(1);
-        SvClam(self)->limits.archivememlim = (short)SvIV(max);
-    }
-    return SvClam(self)->limits.archivememlim;
+    warn("archivememlim is not longer supported in clamav");
+    return 0;
 }
 
 void DESTROY(SV *self)
 {
     struct clamav_perl *c = SvClam(self);
-    cl_free(c->root);
+    cl_engine_free(c->root);
     if (c->is_dir == 1)
         cl_statfree(&c->st);
     Safefree(c->path);
@@ -368,24 +367,23 @@ void clamav_perl__scanfd(SV *self, int fd, int options)
     STRLEN len;
     int status;
     unsigned long int scanned;
-    const char *msg;
+    const char *virname;
     SV *smsg, *sscanned;
     Inline_Stack_Vars;
 
     Inline_Stack_Reset;
 
     scanned = 0;
-    status = cl_scandesc(fd, &msg, &scanned, c->root,
-            &c->limits, options);
+    status = cl_scandesc(fd, &virname, &scanned, c->root, options);
     if (scanned == 0)
         scanned = 1;
 
     smsg = sv_newmortal();
     sv_setiv(smsg, (IV)status);
 
-    /* msg is some random memory if no virus was found */
+    /* virname is some random memory if no virus was found */
     if (status == CL_VIRUS)
-        sv_setpv(smsg, msg);
+        sv_setpv(smsg, virname);
     else if (status == CL_CLEAN)
         sv_setpv(smsg, "Clean");
     else
@@ -416,8 +414,7 @@ void clamav_perl__scanfile(SV *self, SV *path, int options)
 
     scanned = 0;
     p = SvPV(path, PL_na);
-    status = cl_scanfile(p, &msg, &scanned, c->root,
-            &c->limits, options);
+    status = cl_scanfile(p, &msg, &scanned, c->root, options);
     if (scanned == 0)
         scanned = 1;
 
@@ -460,54 +457,56 @@ static void error(int errcode)
 
 int clamav_perl_constant(char *name)
 {
-    if (strEQ("CL_CLEAN", name)) return CL_CLEAN;
-    if (strEQ("CL_VIRUS", name)) return CL_VIRUS;
-    if (strEQ("CL_SUCCESS", name)) return CL_SUCCESS;
-    if (strEQ("CL_BREAK", name)) return CL_BREAK;
 
+/* libclamav specific */
+    if (strEQ("CL_CLEAN", name)) return CL_CLEAN;
+    if (strEQ("CL_SUCCESS", name)) return CL_SUCCESS;
+    if (strEQ("CL_VIRUS", name)) return CL_VIRUS;
+    if (strEQ("CL_ENULLARG", name)) return CL_ENULLARG;
+    if (strEQ("CL_EARG", name)) return CL_EARG;
+    if (strEQ("CL_EMALFDB", name)) return CL_EMALFDB;
+    if (strEQ("CL_ECVD", name)) return CL_ECVD;
+    if (strEQ("CL_EVERIFY", name)) return CL_EVERIFY;
+    if (strEQ("CL_EUNPACK", name)) return CL_EUNPACK;
+
+/* I/O and memory errors */
+    if (strEQ("CL_EOPEN", name)) return CL_EOPEN;
+    if (strEQ("CL_ECREAT", name)) return CL_ECREAT;
+    if (strEQ("CL_EUNLINK", name)) return CL_EUNLINK;
+    if (strEQ("CL_ESTAT", name)) return CL_ESTAT;
+    if (strEQ("CL_EREAD", name)) return CL_EREAD;
+    if (strEQ("CL_ESEEK", name)) return CL_ESEEK;
+    if (strEQ("CL_EWRITE", name)) return CL_EWRITE;
+    if (strEQ("CL_EDUP", name)) return CL_EDUP;
+    if (strEQ("CL_EACCES", name)) return CL_EACCES;
+    if (strEQ("CL_ETMPFILE", name)) return CL_ETMPFILE;
+    if (strEQ("CL_ETMPDIR", name)) return CL_ETMPDIR;
+    if (strEQ("CL_EMAP", name)) return CL_EMAP;
+    if (strEQ("CL_EMEM", name)) return CL_EMEM;
+    if (strEQ("CL_ETIMEOUT", name)) return CL_ETIMEOUT;
+
+/* internal (not reported outside libclamav) */
+    if (strEQ("CL_BREAK", name)) return CL_BREAK;
     if (strEQ("CL_EMAXREC", name)) return CL_EMAXREC;
     if (strEQ("CL_EMAXSIZE", name)) return CL_EMAXSIZE;
     if (strEQ("CL_EMAXFILES", name)) return CL_EMAXFILES;
-    if (strEQ("CL_ERAR", name)) return CL_ERAR;
-    if (strEQ("CL_EZIP", name)) return CL_EZIP;
-    if (strEQ("CL_EGZIP", name)) return CL_EGZIP;
-    if (strEQ("CL_EBZIP", name)) return CL_EBZIP;
-    if (strEQ("CL_EOLE2", name)) return CL_EOLE2;
-    if (strEQ("CL_EMSCOMP", name)) return CL_EMSCOMP;
-    if (strEQ("CL_EMSCAB", name)) return CL_EMSCAB;
-    if (strEQ("CL_EACCES", name)) return CL_EACCES;
-    if (strEQ("CL_ENULLARG", name)) return CL_ENULLARG;
-    if (strEQ("CL_ETMPFILE", name)) return CL_ETMPFILE;
-    if (strEQ("CL_EFSYNC", name)) return CL_EFSYNC;
-    if (strEQ("CL_EMEM", name)) return CL_EMEM;
-    if (strEQ("CL_EOPEN", name)) return CL_EOPEN;
-    if (strEQ("CL_EMALFDB", name)) return CL_EMALFDB;
-    if (strEQ("CL_EPATSHORT", name)) return CL_EPATSHORT;
-    if (strEQ("CL_ETMPDIR", name)) return CL_ETMPDIR;
-    if (strEQ("CL_ECVD", name)) return CL_ECVD;
-    if (strEQ("CL_ECVDEXTR", name)) return CL_ECVDEXTR;
-    if (strEQ("CL_EMD5", name)) return CL_EMD5;
-    if (strEQ("CL_EDSIG", name)) return CL_EDSIG;
-    if (strEQ("CL_EIO", name)) return CL_EIO;
     if (strEQ("CL_EFORMAT", name)) return CL_EFORMAT;
-    if (strEQ("CL_ESUPPORT", name)) return CL_ESUPPORT;
-    if (strEQ("CL_ELOCKDB", name)) return CL_ELOCKDB;
 
-    /* NodalCore */
-    if (strEQ("CL_ENCINIT", name)) return CL_ENCINIT;
-    if (strEQ("CL_ENCLOAD", name)) return CL_ENCLOAD;
-    if (strEQ("CL_ENCIO", name)) return CL_ENCIO;
-
-    /* db options */
-    if (strEQ("CL_DB_NCORE", name)) return CL_DB_NCORE;
+/* db options */
     if (strEQ("CL_DB_PHISHING", name)) return CL_DB_PHISHING;
-    if (strEQ("CL_DB_ACONLY", name)) return CL_DB_ACONLY;
     if (strEQ("CL_DB_PHISHING_URLS", name)) return CL_DB_PHISHING_URLS;
+    if (strEQ("CL_DB_PUA", name)) return CL_DB_PUA;
+    if (strEQ("CL_DB_CVDNOTMP", name)) return CL_DB_CVDNOTMP;
+    if (strEQ("CL_DB_OFFICIAL", name)) return CL_DB_OFFICIAL;
+    if (strEQ("CL_DB_PUA_MODE", name)) return CL_DB_PUA_MODE;
+    if (strEQ("CL_DB_PUA_INCLUDE", name)) return CL_DB_PUA_INCLUDE;
+    if (strEQ("CL_DB_PUA_EXCLUDE", name)) return CL_DB_PUA_EXCLUDE;
+    if (strEQ("CL_DB_COMPILED", name)) return CL_DB_COMPILED;
 
-    /* recommended db settings */
+/* recommended db settings */
     if (strEQ("CL_DB_STDOPT", name)) return CL_DB_STDOPT;
 
-    /* scan options */
+/* scan options */
     if (strEQ("CL_SCAN_RAW", name)) return CL_SCAN_RAW;
     if (strEQ("CL_SCAN_ARCHIVE", name)) return CL_SCAN_ARCHIVE;
     if (strEQ("CL_SCAN_MAIL", name)) return CL_SCAN_MAIL;
@@ -522,15 +521,34 @@ int clamav_perl_constant(char *name)
     if (strEQ("CL_SCAN_PHISHING_BLOCKSSL", name)) return CL_SCAN_PHISHING_BLOCKSSL;
     if (strEQ("CL_SCAN_PHISHING_BLOCKCLOAK", name)) return CL_SCAN_PHISHING_BLOCKCLOAK;
     if (strEQ("CL_SCAN_ELF", name)) return CL_SCAN_ELF;
+    if (strEQ("CL_SCAN_PDF", name)) return CL_SCAN_PDF;
+    if (strEQ("CL_SCAN_STRUCTURED", name)) return CL_SCAN_STRUCTURED;
+    if (strEQ("CL_SCAN_STRUCTURED_SSN_NORMAL", name)) return CL_SCAN_STRUCTURED_SSN_NORMAL;
+    if (strEQ("CL_SCAN_STRUCTURED_SSN_STRIPPED", name)) return CL_SCAN_STRUCTURED_SSN_STRIPPED;
+    if (strEQ("CL_SCAN_PARTIAL_MESSAGE", name)) return CL_SCAN_PARTIAL_MESSAGE;
+    if (strEQ("CL_SCAN_HEURISTIC_PRECEDENCE", name)) return CL_SCAN_HEURISTIC_PRECEDENCE;
+
+    if (strEQ("CL_ENGINE_MAX_SCANSIZE", name)) return CL_ENGINE_MAX_SCANSIZE;
+    if (strEQ("CL_ENGINE_MAX_FILESIZE", name)) return CL_ENGINE_MAX_FILESIZE;
+    if (strEQ("CL_ENGINE_MAX_RECURSION", name)) return CL_ENGINE_MAX_RECURSION;
+    if (strEQ("CL_ENGINE_MAX_FILES", name)) return CL_ENGINE_MAX_FILES;
+    if (strEQ("CL_ENGINE_MIN_CC_COUNT", name)) return CL_ENGINE_MIN_CC_COUNT;
+    if (strEQ("CL_ENGINE_MIN_SSN_COUNT", name)) return CL_ENGINE_MIN_SSN_COUNT;
+    if (strEQ("CL_ENGINE_PUA_CATEGORIES", name)) return CL_ENGINE_PUA_CATEGORIES;
+    if (strEQ("CL_ENGINE_DB_OPTIONS", name)) return CL_ENGINE_DB_OPTIONS;
+    if (strEQ("CL_ENGINE_DB_VERSION", name)) return CL_ENGINE_DB_VERSION;
+    if (strEQ("CL_ENGINE_DB_TIME", name)) return CL_ENGINE_DB_TIME;
+    if (strEQ("CL_ENGINE_AC_ONLY", name)) return CL_ENGINE_AC_ONLY;
+    if (strEQ("CL_ENGINE_AC_MINDEPTH", name)) return CL_ENGINE_AC_MINDEPTH;
+    if (strEQ("CL_ENGINE_AC_MAXDEPTH", name)) return CL_ENGINE_AC_MAXDEPTH;
+    if (strEQ("CL_ENGINE_TMPDIR", name)) return CL_ENGINE_TMPDIR;
+    if (strEQ("CL_ENGINE_KEEPTMP", name)) return CL_ENGINE_KEEPTMP;
+
+    if (strEQ("CL_ENCINIT", name)) return CL_ENCINIT;
+    if (strEQ("CL_ENCLOAD", name)) return CL_ENCLOAD;
+    if (strEQ("CL_ENCIO", name)) return CL_ENCIO;
 
     if (strEQ("CL_SCAN_STDOPT", name)) return CL_SCAN_STDOPT;
-
-    /* aliases for backward compatibility */
-    if (strEQ("CL_RAW", name)) return CL_RAW;
-    if (strEQ("CL_ARCHIVE", name)) return CL_ARCHIVE;
-    if (strEQ("CL_MAIL", name)) return CL_MAIL;
-    if (strEQ("CL_OLE2", name)) return CL_OLE2;
-    if (strEQ("CL_ENCRYPTED", name)) return CL_ENCRYPTED;
 
     croak("Invalid function %s", name);
 }
@@ -748,34 +766,6 @@ size limit exceeded
 
 files limit exceeded 
 
-=item CL_ERAR
-
-rar handler error 
-
-=item CL_EZIP
-
-zip handler error 
-
-=item CL_EGZIP
-
-gzip handler error 
-
-=item CL_EBZIP
-
-bzip2 handler error 
-
-=item CL_EOLE2
-
-OLE2 handler error 
-
-=item CL_EMSCOMP
-
-MS Expand handler error 
-
-=item CL_EMSCAB
-
-MS CAB module error 
-
 =item CL_EACCES
 
 access denied 
@@ -787,10 +777,6 @@ null argument
 =item CL_ETMPFILE
 
 tmpfile() failed 
-
-=item CL_EFSYNC
-
-fsync() failed 
 
 =item CL_EMEM
 
@@ -804,10 +790,6 @@ file open error
 
 malformed database 
 
-=item CL_EPATSHORT
-
-pattern too short 
-
 =item CL_ETMPDIR
 
 mkdir() failed 
@@ -816,33 +798,9 @@ mkdir() failed
 
 not a CVD file (or broken) 
 
-=item CL_ECVDEXTR
-
-CVD extraction failure 
-
-=item CL_EMD5
-
-MD5 verification error 
-
-=item CL_EDSIG
-
-digital signature verification error 
-
-=item CL_EIO
-
-general I/O error 
-
 =item CL_EFORMAT
 
 bad format or broken file 
-
-=item CL_ESUPPORT
-
-not supported data format 
-
-=item CL_ELOCKDB
-
-can't lock DB directory 
 
 =item CL_ENCINIT
 

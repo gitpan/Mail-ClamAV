@@ -3,32 +3,129 @@ use 5.006;
 use lib '.';
 use Inline::MakeMaker; # bundled
 
-my $inc = join " ", (`clamav-config --cflags` =~ /(-I\S+)/g);
-if ($?) {
-    config_warn();
-    $inc = '-I/usr/include';
-}
-else {
-    chomp $inc;
-}
-my $version = `clamav-config --version`;
-chomp $version;
-if ($version < 0.90) {
-    die "The clamav version you are using is too old. Please upgrade to atleast 0.90\n";
+# see ExtUtils::MY documentation
+sub MY::top_targets {
+    package MY;
+    my $out = shift->SUPER::top_targets(@_);
+    my $link_code =
+	"# Remove Inline::C configuration code\n"
+	. "\t"
+	. q{@$(PERL) -n -i -e '$$a=1 if/^\s*#\s*removed on install.*/;print if!$$a;$$a=0if/^\s*#\s*end[^\n]*/;' blib/lib/Mail/ClamAV.pm
+};
+    $out =~ s/\n\n/\n\nremove_on_install:\n$link_code\n/;
+    $out =~ s/all :: pure_all/all :: pure_all remove_on_install/;
+
+    return $out;
 }
 
-my $libs = `clamav-config --libs`;
-if ($?) {
-    config_warn();
-    $libs = q(-lz -lbz2 -lgmp -lpthread);
-}
-else {
-    chomp $libs;
-}
-$libs .= " -lclamav";
+my $minclversion = "0.95.1";  # minimum clamav lib version
+my $DEFAULT_LIBS = q(-lz -lbz2 -lgmp -lpthread);
+my $DEFAULT_INC = '-I/usr/include';
+my $AUTHOR = 'David P.C. Wollmann <converter42@gmail.com>';
 
-open my $fh, ">", "config.pl" or die "Could not open config.pl: $!";
-print $fh <<END;
+# based on list posted at http://clamav.net/doc/latest/html/node7.html
+my %supported_OS = (
+    MSWin32 => 1,   # ClamAV wiki lists a few Win ports. We have not tested on Windows and make no guarantees this mod will work.
+    cygwin => 1,
+    linux => 1,
+    solaris => 1,
+    freebsd => 1,
+    openbsd => 1,
+    MacOS => 1,
+    netbsd => 1,    # NetBSD isn't listed on the web page, if it fails I'll remove it later.
+);
+
+my $warned = 0;
+
+
+exit(main());
+
+
+sub main {
+
+    unless ($supported_OS{$^O}) {
+        warn "'$^O' is not supported by Clam AV (supported OSs: "
+            . join(', ' => sort keys %supported_OS)
+            . ')';
+        return 0;
+    }
+
+    my $clver = get_cl_version();
+    return warn_cl_version_bad() if $clver lt $minclversion;
+
+    my $inc = get_cl_inc_paths();
+    my $libs = get_cl_libs();
+
+    $libs .= ' -clamav';
+
+    write_config_pl($inc, $libs) or return 0;
+
+    # NOTE: most of these options are ignored by Inline::MakeMaker
+    WriteMakefile(
+        NAME                => 'Mail::ClamAV',
+        VERSION_FROM        => 'ClamAV.pm', # finds $VERSION
+        PREREQ_PM           => {}, # e.g., Module::Name => 1.1
+        ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
+          (ABSTRACT_FROM    => 'ClamAV.pm', # retrieve abstract from module
+           AUTHOR           => $AUTHOR) : ()),
+        LIBS                => ['-lclamav'],
+        DEFINE              => '', # e.g., '-DHAVE_SOMETHING'
+        PM                  => { 'ClamAV.pm' => 'blib/lib/Mail/ClamAV.pm' },
+            # Un-comment this if you add C files to link with later:
+        # 'OBJECT'          => '$(O_FILES)', # link all the C files too
+    );
+}
+
+sub warn_cl_version_bad {
+    warn "The clamav version you are using is too old. Please upgrade to at least $minclversion\n";
+    return 0;
+}
+
+sub get_cl_version {
+    my $version = `clamav-config --version`;
+    chomp $version;
+
+    return $version;
+}
+
+sub get_cl_inc_paths {
+    my $inc = join " ", (`clamav-config --cflags` =~ /(-I\S+)/g);
+    if ($?) {
+        config_warn();
+        warn "guessing include path is $DEFAULT_INC";
+        $inc = $DEFAULT_INC;
+    }
+    else {
+        chomp $inc;
+    }
+
+    return $inc;
+}
+
+sub get_cl_libs {
+    my $libs = `clamav-config --libs`;
+    if ($?) {
+        config_warn();
+        warn "guessing libraries needed are $DEFAULT_LIBS";
+        $libs = $DEFAULT_LIBS;
+    }
+    else {
+        chomp $libs;
+    }
+    $libs .= " -lclamav";
+
+    return $libs;
+}
+
+sub write_config_pl {
+    my ($inc, $libs) = @_;
+
+    my $fh;
+    unless (open $fh, ">", "config.pl") {
+        warn "Could not open config.pl: $!";
+        return;
+    }
+    print $fh <<END;
 use Inline C => Config =>
     VERSION  => \$Mail::ClamAV::VERSION,
     PREFIX   => 'clamav_perl_',
@@ -37,20 +134,11 @@ use Inline C => Config =>
     LIBS     => "$libs";
 1;
 END
-close $fh;
+    close $fh;
 
-sub MY::top_targets {
-    package MY;
-    my $out = shift->SUPER::top_targets(@_);
-    my $link_code = q{# Remove Inline::C configuration code
-	@$(PERL) -n -i -e '$$a=1 if/^\s*#\s*removed on install.*/;print if!$$a;$$a=0if/^\s*#\s*end[^\n]*/;' blib/lib/Mail/ClamAV.pm
-};
-    $out =~ s/\n\n/\n\nremove_on_install:\n$link_code\n/;
-    $out =~ s/all :: pure_all/all :: pure_all remove_on_install/;
-    return $out;
+    return 1;
 }
 
-my $warned = 0;
 sub config_warn {
     unless ($warned) {
         $warned++;
@@ -58,24 +146,9 @@ sub config_warn {
         warn "WARNING You have an older version of clamav or\n";
         warn "WARNING clamav-config is not in your path\n";
         warn "WARNING If you get compile errors you will either\n";
-        warn "WARNING need to upgrade clamav to atleast 0.73\n";
+        warn "WARNING need to upgrade clamav to at least $minclversion\n";
         warn "WARNING or make sure clamav-config is in your path\n";
         warn "WARNING ------------------------------------------------\n";
     }
 }
-
-# NOTE: most of these options are ignored by Inline::MakeMaker
-WriteMakefile(
-    NAME                => 'Mail::ClamAV',
-    VERSION_FROM        => 'ClamAV.pm', # finds $VERSION
-    PREREQ_PM           => {}, # e.g., Module::Name => 1.1
-    ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
-      (ABSTRACT_FROM    => 'ClamAV.pm', # retrieve abstract from module
-       AUTHOR           => 'Scott Beck <sbeck@gossamer-threads.com>') : ()),
-    LIBS                => ['-lclamav'],
-    DEFINE              => '', # e.g., '-DHAVE_SOMETHING'
-    PM                  => { 'ClamAV.pm' => 'blib/lib/Mail/ClamAV.pm' },
-        # Un-comment this if you add C files to link with later:
-    # 'OBJECT'          => '$(O_FILES)', # link all the C files too
-);
 
