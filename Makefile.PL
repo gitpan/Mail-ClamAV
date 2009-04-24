@@ -71,6 +71,9 @@ sub main {
         LIBS                => ['-lclamav'],
         DEFINE              => '', # e.g., '-DHAVE_SOMETHING'
         PM                  => { 'ClamAV.pm' => 'blib/lib/Mail/ClamAV.pm' },
+        # prevent EU::MM replacing our META.yml with a default one that's
+        # missing important information, like "provides"
+        NO_META             => 1,
             # Un-comment this if you add C files to link with later:
         # 'OBJECT'          => '$(O_FILES)', # link all the C files too
     );

@@ -28,7 +28,6 @@ SYNOPSIS
         $c->maxreclevel(4);
         $c->maxfiles(20);
         $c->maxfilesize(1024 * 1024 * 20); # 20 megs
-        $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
 
         # Scan a filehandle (scandesc in clamav)
         # scan(FileHandle or path, Bitfield of options)
@@ -140,27 +139,6 @@ DESCRIPTION
     CL_EMAXFILES
      files limit exceeded
 
-    CL_ERAR
-     rar handler error
-
-    CL_EZIP
-     zip handler error
-
-    CL_EGZIP
-     gzip handler error
-
-    CL_EBZIP
-     bzip2 handler error
-
-    CL_EOLE2
-     OLE2 handler error
-
-    CL_EMSCOMP
-     MS Expand handler error
-
-    CL_EMSCAB
-     MS CAB module error
-
     CL_EACCES
      access denied
 
@@ -169,9 +147,6 @@ DESCRIPTION
 
     CL_ETMPFILE
      tmpfile() failed
-
-    CL_EFSYNC
-     fsync() failed
 
     CL_EMEM
      memory allocation error
@@ -182,35 +157,14 @@ DESCRIPTION
     CL_EMALFDB
      malformed database
 
-    CL_EPATSHORT
-     pattern too short
-
     CL_ETMPDIR
      mkdir() failed
 
     CL_ECVD
      not a CVD file (or broken)
 
-    CL_ECVDEXTR
-     CVD extraction failure
-
-    CL_EMD5
-     MD5 verification error
-
-    CL_EDSIG
-     digital signature verification error
-
-    CL_EIO
-     general I/O error
-
     CL_EFORMAT
      bad format or broken file
-
-    CL_ESUPPORT
-     not supported data format
-
-    CL_ELOCKDB
-     can't lock DB directory
 
     CL_ENCINIT
      NodalCore initialization failed
@@ -254,9 +208,6 @@ METHODS
      With a minor version bump clamav development team removed this and
      broke backwards compatibility, so it is no longer supported in this
      module as of 0.22.
-
-    archivememlim
-     Turns on/off memory usage limits for bzip2. [default 1]
 
   Scanning
     All of these methods return a status object. This object is overloaded
@@ -317,7 +268,7 @@ SEE ALSO
     <http://www.clamav.net/doc/html-0.65/node44.html>
 
 AUTHOR
-    Scott Beck <sbeck@gossamer-threads.com>
+    David P.C. Wollmann <converter42@gmail.com>
 
 COPYRIGHT AND LICENSE
     Copyright (C) 2003 by Gossamer Threads Inc.

@@ -3,7 +3,7 @@ ClamAV.pm
 Inline/MakeMaker.pm
 INSTALL
 Makefile.PL
-MANIFEST
+MANIFEST			This list of files
 MANIFEST.SKIP
 META.yml
 README

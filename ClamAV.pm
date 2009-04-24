@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.24';
+    $VERSION = '0.25';
 }
 
 # guard against memory errors not being reported
@@ -618,7 +618,6 @@ Mail::ClamAV - Perl extension for the clamav virus scanner
     $c->maxreclevel(4);
     $c->maxfiles(20);
     $c->maxfilesize(1024 * 1024 * 20); # 20 megs
-    $c->archivememlim(0); # limit memory usage for bzip2 (0/1)
 
     # Scan a filehandle (scandesc in clamav)
     # scan(FileHandle or path, Bitfield of options)
@@ -863,10 +862,6 @@ disables the check.
 With a minor version bump clamav development team removed this and broke backwards compatibility,
 so it is no longer supported in this module as of 0.22.
 
-=item archivememlim
-
-Turns on/off memory usage limits for bzip2. [default 1]
-
 =back
 
 =head2 Scanning
@@ -945,7 +940,7 @@ The ClamAV API documentation L<http://www.clamav.net/doc/html-0.65/node44.html>
 
 =head1 AUTHOR
 
-Scott Beck E<lt>sbeck@gossamer-threads.comE<gt>
+David P.C. Wollmann E<lt>converter42@gmail.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 

@@ -1,11 +1,19 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Mail-ClamAV
-version:      0.24
-version_from: ClamAV.pm
-installdirs:  site
-requires:
+--- #YAML:1.0
+name:                Mail-ClamAV
+version:             0.25
+abstract:            Perl extension for the clamav virus scanner
+license:             ~
+author:              
+    - David P.C. Wollmann <converter42@gmail.com>
+    - Scott Beck <sbeck@gossamer-threads.com>
+generated_by:        ExtUtils::MakeMaker version 6.44
+distribution_type:   module
+provides:
+    Mail::ClamAV:
+        file: ClamAV.pm
+        version: 0.25
+requires:     
     Inline:                        0.44
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3
