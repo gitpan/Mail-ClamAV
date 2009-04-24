@@ -1,5 +1,11 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.26  Fri Apr 24 15:11:22 CDT 2009
+  - Added 'no_index' for directory Inline to META.yml to hide from indexer.
+
+0.25  Fri Apr 24 14:11:10 CDT 2009
+  - Added 'provides' mapping to META.yml to conceal private copy of Inline::MakeMaker from indexers. FAILED.
+
 0.24  Wed Apr 22 13:33:06 CDT 2009
   - Update to work with clamav-0.95.1 API. clamav libs version 0.95.1 or greater required.
   - Modified Makefile.PL to exit zero instead of dying if clamav version too old.
