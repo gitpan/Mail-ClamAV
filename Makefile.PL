@@ -61,7 +61,7 @@ sub main {
     write_config_pl($inc, $libs) or return 0;
 
     # NOTE: most of these options are ignored by Inline::MakeMaker
-    WriteMakefile(
+    my $rc = WriteMakefile(
         NAME                => 'Mail::ClamAV',
         VERSION_FROM        => 'ClamAV.pm', # finds $VERSION
         PREREQ_PM           => {}, # e.g., Module::Name => 1.1
@@ -77,6 +77,13 @@ sub main {
             # Un-comment this if you add C files to link with later:
         # 'OBJECT'          => '$(O_FILES)', # link all the C files too
     );
+
+    unless ($rc) {
+        warn "WriteMakefile failed with return code: $rc";
+        return -1;
+    }
+
+    return 0;
 }
 
 sub warn_cl_version_bad {

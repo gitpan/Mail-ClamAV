@@ -1,5 +1,8 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.27  Mon Apr 27 03:13:03 CDT 2009
+  - &main returns zero on success of WriteMakefile().
+
 0.26  Fri Apr 24 15:11:22 CDT 2009
   - Added 'no_index' for directory Inline to META.yml to hide from indexer.
 
