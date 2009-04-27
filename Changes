@@ -1,5 +1,8 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.28  Mon Apr 27 03:18:53 CDT 2009
+  - META.yml contained wrong version number (0.26).
+
 0.27  Mon Apr 27 03:13:03 CDT 2009
   - &main returns zero on success of WriteMakefile().
 
