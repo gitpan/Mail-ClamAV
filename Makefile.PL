@@ -25,14 +25,14 @@ my $AUTHOR = 'David P.C. Wollmann <converter42@gmail.com>';
 
 # based on list posted at http://clamav.net/doc/latest/html/node7.html
 my %supported_OS = (
-    MSWin32 => 1,   # ClamAV wiki lists a few Win ports. We have not tested on Windows and make no guarantees this mod will work.
-    cygwin => 1,
-    linux => 1,
-    solaris => 1,
-    freebsd => 1,
-    openbsd => 1,
-    MacOS => 1,
-    netbsd => 1,    # NetBSD isn't listed on the web page, if it fails I'll remove it later.
+    mswin32 => 'MSWin32',  # ClamAV wiki lists a few Win ports. We have not tested on Windows and make no guarantees this mod will work.
+    cygwin => 'cygwin',
+    linux => 'linux',
+    solaris => 'solaris',
+    freebsd => 'freebsd',
+    openbsd => 'openbsd',
+    macos => 'MacOS',
+    netbsd => 'netbsd',    # NetBSD isn't listed on the web page, if it fails I'll remove it later.
 );
 
 my $warned = 0;
@@ -43,11 +43,11 @@ exit(main());
 
 sub main {
 
-    unless ($supported_OS{$^O}) {
-        warn "'$^O' is not supported by Clam AV (supported OSs: "
-            . join(', ' => sort keys %supported_OS)
+    unless ($supported_OS{lc $^O}) {
+        warn "The '$^O' OS is not supported by Clam AV (supported OSs: "
+            . join(', ' => map {$supported_OS{$_}} sort keys %supported_OS)
             . ')';
-        return 0;
+        die 'No support for OS';
     }
 
     my $clver = get_cl_version();

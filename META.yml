@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Mail-ClamAV
-version:             0.28
+version:             0.29
 abstract:            Perl extension for the clamav virus scanner
 license:             ~
 author:              
@@ -11,7 +11,7 @@ distribution_type:   module
 provides:
     Mail::ClamAV:
         file: ClamAV.pm
-        version: 0.28
+        version: 0.29
 no_index:
     directory:
     - Inline
