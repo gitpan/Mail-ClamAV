@@ -7,7 +7,7 @@ use Carp;
 
 our $VERSION;
 BEGIN {
-    $VERSION = '0.29';
+    $VERSION = '0.30';
 }
 
 # guard against memory errors not being reported

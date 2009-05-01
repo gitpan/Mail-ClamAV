@@ -18,7 +18,7 @@ sub MY::top_targets {
     return $out;
 }
 
-my $minclversion = "0.95.1";  # minimum clamav lib version
+my $minclversion = "0.95";  # minimum clamav lib version
 my $DEFAULT_LIBS = q(-lz -lbz2 -lgmp -lpthread);
 my $DEFAULT_INC = '-I/usr/include';
 my $AUTHOR = 'David P.C. Wollmann <converter42@gmail.com>';
@@ -51,6 +51,7 @@ sub main {
     }
 
     my $clver = get_cl_version();
+    return warn_cl_version_fail() unless defined $clver;
     return warn_cl_version_bad() if $clver lt $minclversion;
 
     my $inc = get_cl_inc_paths();
@@ -86,13 +87,24 @@ sub main {
     return 0;
 }
 
+sub warn_cl_version_fail {
+    warn "Unable to execute the clamav-config tool, cannot fetch build options.";
+    return 0;
+}
+
 sub warn_cl_version_bad {
     warn "The clamav version you are using is too old. Please upgrade to at least $minclversion\n";
     return 0;
 }
 
 sub get_cl_version {
-    my $version = `clamav-config --version`;
+    my $cmd = 'clamav-config --version';
+    my $version = `$cmd`;
+    if ($?) {
+        $rc = $? >> 8;
+        warn "'$cmd' failed with rc = $rc";
+        return;
+    }
     chomp $version;
 
     return $version;
