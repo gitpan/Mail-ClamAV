@@ -1,5 +1,10 @@
 Revision history for Perl extension Mail::ClamAV.
 
+0.29_1 Fri May  1 14:28:46 CDT 2009
+  - Developer release to test changes to META.yml and Makefile.PL.
+  - Makefile.PL now prints warning and exits with zero if first attempt to run
+    clamav-config fails.
+
 0.29  Wed Apr 29 18:02:17 CDT 2009
   - Makefile.PL dies with 'No support for OS' when OS is unsupported, per
     recommended solution at http://wiki.cpantesters.org/wiki/CPANAuthorNotes
